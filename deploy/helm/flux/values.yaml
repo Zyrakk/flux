@@ -1,0 +1,161 @@
+# ============================================================================
+# Flux — Configuration Values
+# ============================================================================
+
+# -- Global settings
+global:
+  imageRegistry: ""
+  imagePullPolicy: Never
+  security:
+    allowInsecureImages: true
+
+# ============================================================================
+# API Server
+# ============================================================================
+api:
+  replicaCount: 1
+  image:
+    repository: flux-api
+    tag: "latest"
+  port: 8080
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  # -- Node selector (useful for hybrid clusters like Pi + x86)
+  nodeSelector: {}
+
+# ============================================================================
+# LLM Configuration (Critical — choose your provider)
+# ============================================================================
+llm:
+  # -- Provider: "glm" | "openai_compat" | "anthropic"
+  provider: "glm"
+  # -- API endpoint URL
+  endpoint: "https://open.bigmodel.cn/api/paas/v4"
+  # -- Model name
+  model: "glm-4.7"
+  # -- API key (reference to a secret)
+  apiKeySecretRef:
+    name: flux-llm-secret
+    key: api-key
+
+# ============================================================================
+# Sections (briefing categories)
+# ============================================================================
+sections:
+  cybersecurity:
+    enabled: true
+    displayName: "🔒 Cybersecurity"
+    maxBriefingArticles: 5
+  tech:
+    enabled: true
+    displayName: "💻 Tech"
+    maxBriefingArticles: 5
+  economy:
+    enabled: true
+    displayName: "📈 Economy"
+    maxBriefingArticles: 3
+  world:
+    enabled: true
+    displayName: "🌍 World"
+    maxBriefingArticles: 2
+
+# ============================================================================
+# Rate Limiting
+# ============================================================================
+rateLimit:
+  # -- Rate limits per domain. Format: "requests/period" (sec, min, hour)
+  limits:
+    reddit.com: "60/min"
+    hn.algolia.com: "30/min"
+    api.github.com: "83/min"
+    default: "10/min"
+  userAgent: "Flux/1.0 (+https://github.com/zyrak/flux)"
+
+# ============================================================================
+# Ingress (Traefik IngressRoute)
+# ============================================================================
+ingress:
+  enabled: true
+  host: "flux.zyrak.cloud"
+  tls:
+    enabled: true
+    # -- Name of an existing TLS secret, or use cert-manager
+    secretName: "flux-tls"
+  annotations: {}
+
+# ============================================================================
+# PostgreSQL (Bitnami subchart)
+# ============================================================================
+postgresql:
+  enabled: true
+  image:
+    repository: bitnamilegacy/postgresql
+  auth:
+    username: postgres
+    password: "flux"
+    postgresPassword: "flux"
+    database: flux
+  primary:
+    persistence:
+      enabled: false
+      size: 10Gi
+    initdb:
+      scripts:
+        01-grant-superuser.sql: |
+          ALTER ROLE flux WITH SUPERUSER;
+
+# -- OR use an external database:
+# postgresql:
+#   enabled: false
+# externalDatabase:
+#   host: "my-postgres.example.com"
+#   port: 5432
+#   user: "flux"
+#   password: ""
+#   database: "flux"
+#   existingSecret: ""
+
+# ============================================================================
+# NATS (official chart)
+# ============================================================================
+nats:
+  enabled: true
+  config:
+    jetstream:
+      enabled: true
+      memStorage:
+        size: 256Mi
+      fileStorage:
+        size: 1Gi
+
+# ============================================================================
+# Redis / Valkey (Bitnami subchart)
+# ============================================================================
+redis:
+  enabled: true
+  image:
+    repository: bitnamilegacy/redis
+  architecture: standalone
+  auth:
+    enabled: false  # Internal network only
+  master:
+    persistence:
+      enabled: false
+      size: 1Gi
+
+# ============================================================================
+# Migration Job
+# ============================================================================
+migration:
+  # -- Runs as a Helm hook on install/upgrade
+  enabled: false
+  image:
+    repository: flux-api
+    tag: "latest"
+  # -- Force migration job to a specific node when using local-only images.
+  nodeSelector: {}

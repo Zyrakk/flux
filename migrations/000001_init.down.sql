@@ -1,0 +1,8 @@
+DROP TABLE IF EXISTS section_profiles;
+DROP TABLE IF EXISTS feedback;
+DROP TABLE IF EXISTS briefings;
+DROP TABLE IF EXISTS articles;
+DROP TABLE IF EXISTS source_sections;
+DROP TABLE IF EXISTS sources;
+DROP TABLE IF EXISTS sections;
+DROP EXTENSION IF EXISTS vector;

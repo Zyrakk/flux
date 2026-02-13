@@ -1,0 +1,47 @@
+# Binaries
+/bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test
+coverage.out
+coverage.html
+*.test
+
+# Go
+vendor/
+go.work
+go.work.sum
+
+# Node / Svelte (web/)
+web/node_modules/
+web/.svelte-kit/
+web/build/
+web/dist/
+
+# Environment
+.env
+*.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# Helm
+deploy/helm/flux/charts/
+deploy/helm/flux/*.tgz
+
+# Misc
+tmp/
+*.log
