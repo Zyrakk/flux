@@ -80,42 +80,52 @@ services:
     networks:
       - flux
 
-  # Workers (uncomment as phases are implemented)
-  # worker-rss:
-  #   build:
-  #     context: .
-  #     dockerfile: deploy/docker/Dockerfile.worker-rss
-  #   environment:
-  #     DATABASE_URL: postgres://${POSTGRES_USER:-flux}:${POSTGRES_PASSWORD:-flux}@postgres:5432/${POSTGRES_DB:-flux}?sslmode=disable
-  #     NATS_URL: nats://nats:4222
-  #     REDIS_URL: redis://redis:6379/0
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     nats:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #   networks:
-  #     - flux
+  worker-rss:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.worker-rss
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-flux}:${POSTGRES_PASSWORD:-flux}@postgres:5432/${POSTGRES_DB:-flux}?sslmode=disable
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      WORKER_MODE: ${WORKER_MODE_RSS:-daemon}
+      RATE_LIMITS: ${RATE_LIMITS:-reddit.com=60/min,hacker-news.firebaseio.com=30/min,api.github.com=83/min,default=10/min}
+      USER_AGENT: ${USER_AGENT:-Flux/1.0 (+https://github.com/zyrak/flux)}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - flux
 
-  # worker-hn:
-  #   build:
-  #     context: .
-  #     dockerfile: deploy/docker/Dockerfile.worker-hn
-  #   environment:
-  #     DATABASE_URL: postgres://${POSTGRES_USER:-flux}:${POSTGRES_PASSWORD:-flux}@postgres:5432/${POSTGRES_DB:-flux}?sslmode=disable
-  #     NATS_URL: nats://nats:4222
-  #     REDIS_URL: redis://redis:6379/0
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     nats:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #   networks:
-  #     - flux
+  worker-hn:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.worker-hn
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-flux}:${POSTGRES_PASSWORD:-flux}@postgres:5432/${POSTGRES_DB:-flux}?sslmode=disable
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      WORKER_MODE: ${WORKER_MODE_HN:-daemon}
+      HN_MIN_SCORE: ${HN_MIN_SCORE:-10}
+      RATE_LIMITS: ${RATE_LIMITS:-reddit.com=60/min,hacker-news.firebaseio.com=30/min,api.github.com=83/min,default=10/min}
+      USER_AGENT: ${USER_AGENT:-Flux/1.0 (+https://github.com/zyrak/flux)}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - flux
 
 volumes:
   postgres_data:

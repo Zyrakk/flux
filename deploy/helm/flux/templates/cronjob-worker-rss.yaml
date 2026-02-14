@@ -1,0 +1,42 @@
+{{- if .Values.workerRss.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "flux.fullname" . }}-worker-rss
+  labels:
+    {{- include "flux.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker-rss
+spec:
+  schedule: {{ .Values.workerRss.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      template:
+        metadata:
+          labels:
+            {{- include "flux.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: worker-rss
+        spec:
+          {{- with .Values.workerRss.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          restartPolicy: OnFailure
+          containers:
+            - name: worker-rss
+              image: "{{ if .Values.global.imageRegistry }}{{ .Values.global.imageRegistry }}/{{ end }}{{ .Values.workerRss.image.repository }}:{{ .Values.workerRss.image.tag }}"
+              imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+              env:
+                - name: WORKER_MODE
+                  value: "cronjob"
+              envFrom:
+                - configMapRef:
+                    name: {{ include "flux.fullname" . }}-config
+                - secretRef:
+                    name: {{ include "flux.fullname" . }}-secrets
+              resources:
+                {{- toYaml .Values.workerRss.resources | nindent 16 }}
+{{- end }}

@@ -49,7 +49,7 @@ func Load() *Config {
 		UserAgent:   getEnv("USER_AGENT", "Flux/1.0 (+https://github.com/zyrak/flux)"),
 	}
 
-	cfg.RateLimits = parseRateLimits(getEnv("RATE_LIMITS", "reddit.com=60/min,hn.algolia.com=30/min,api.github.com=83/min,default=10/min"))
+	cfg.RateLimits = parseRateLimits(getEnv("RATE_LIMITS", "reddit.com=60/min,hacker-news.firebaseio.com=30/min,api.github.com=83/min,default=10/min"))
 
 	return cfg
 }

@@ -29,6 +29,40 @@ api:
   nodeSelector: {}
 
 # ============================================================================
+# Workers (CronJobs)
+# ============================================================================
+workerRss:
+  enabled: true
+  schedule: "*/30 * * * *"
+  image:
+    repository: flux-worker-rss
+    tag: "latest"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+  nodeSelector: {}
+
+workerHn:
+  enabled: true
+  schedule: "*/15 * * * *"
+  minScore: 10
+  image:
+    repository: flux-worker-hn
+    tag: "latest"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+  nodeSelector: {}
+
+# ============================================================================
 # LLM Configuration (Critical — choose your provider)
 # ============================================================================
 llm:
@@ -71,7 +105,7 @@ rateLimit:
   # -- Rate limits per domain. Format: "requests/period" (sec, min, hour)
   limits:
     reddit.com: "60/min"
-    hn.algolia.com: "30/min"
+    hacker-news.firebaseio.com: "30/min"
     api.github.com: "83/min"
     default: "10/min"
   userAgent: "Flux/1.0 (+https://github.com/zyrak/flux)"
