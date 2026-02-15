@@ -29,6 +29,25 @@ api:
   nodeSelector: {}
 
 # ============================================================================
+# Frontend (SvelteKit node adapter)
+# ============================================================================
+frontend:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: flux-frontend
+    tag: "latest"
+  port: 3000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  nodeSelector: {}
+
+# ============================================================================
 # Workers (CronJobs)
 # ============================================================================
 workerRss:
@@ -178,6 +197,16 @@ relevance:
   sourceBoosts: "tl;dr sec=0.1"
 
 # ============================================================================
+# Auth & section profile recalc
+# ============================================================================
+auth:
+  token: ""
+
+profileRecalc:
+  trigger: "immediate"
+  every: "1h"
+
+# ============================================================================
 # Ingress (Traefik IngressRoute)
 # ============================================================================
 ingress:
@@ -187,6 +216,11 @@ ingress:
     enabled: true
     # -- Name of an existing TLS secret, or use cert-manager
     secretName: "flux-tls"
+    certManager:
+      enabled: true
+      issuerRef:
+        name: "letsencrypt-prod"
+        kind: "ClusterIssuer"
   annotations: {}
 
 # ============================================================================

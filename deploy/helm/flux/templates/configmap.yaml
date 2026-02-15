@@ -18,7 +18,10 @@ data:
   RELEVANCE_THRESHOLD_MAX: {{ .Values.relevance.thresholdMax | quote }}
   RELEVANCE_THRESHOLD_STEP: {{ .Values.relevance.thresholdStep | quote }}
   SOURCE_BOOSTS: {{ .Values.relevance.sourceBoosts | quote }}
+  PROFILE_RECALC_TRIGGER: {{ .Values.profileRecalc.trigger | quote }}
+  PROFILE_RECALC_EVERY: {{ .Values.profileRecalc.every | quote }}
   API_PORT: {{ .Values.api.port | quote }}
+  API_INTERNAL_URL: {{ printf "http://%s-api:%d" (include "flux.fullname" .) (int .Values.api.port) | quote }}
   LOG_LEVEL: "info"
   USER_AGENT: {{ .Values.rateLimit.userAgent | quote }}
   RATE_LIMITS: {{ range $domain, $limit := .Values.rateLimit.limits }}{{ $domain }}={{ $limit }},{{ end }}

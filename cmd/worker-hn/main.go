@@ -280,6 +280,8 @@ func (w *hnWorker) runOnce(ctx context.Context) (hnRunStats, error) {
 			"hn_comments": item.Descendants,
 			"hn_id":       item.ID,
 			"hn_type":     item.Type,
+			"source_name": "Hacker News",
+			"source_ref":  w.sourceID,
 		})
 		if err != nil {
 			stats.Errors++

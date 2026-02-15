@@ -13,6 +13,7 @@ import (
 	"github.com/zyrak/flux/internal/config"
 	"github.com/zyrak/flux/internal/embeddings"
 	"github.com/zyrak/flux/internal/models"
+	"github.com/zyrak/flux/internal/profile"
 	"github.com/zyrak/flux/internal/queue"
 	"github.com/zyrak/flux/internal/relevance"
 	"github.com/zyrak/flux/internal/store"
@@ -67,6 +68,14 @@ func main() {
 		relevance: relEngine,
 	}
 
+	profileRecalc := profile.NewRecalculator(db, embedClient, 0.7)
+	if cfg.ProfileRecalcTrigger == "hourly" {
+		log.WithField("every", cfg.ProfileRecalcEvery.String()).Info("Section profile recalculation enabled in hourly mode")
+		go runHourlyProfileRecalculation(ctx, profileRecalc, cfg.ProfileRecalcEvery)
+	} else {
+		log.WithField("trigger", cfg.ProfileRecalcTrigger).Info("Section profile recalculation hourly loop disabled")
+	}
+
 	if err := q.Subscribe(ctx, queue.SubjectArticlesNew, "flux-processor", proc.handleNewArticle); err != nil {
 		log.WithError(err).Fatal("Failed to subscribe to articles.new")
 	}
@@ -79,6 +88,38 @@ func main() {
 	<-ctx.Done()
 
 	log.Info("Processor shutting down")
+}
+
+func runHourlyProfileRecalculation(ctx context.Context, recalc *profile.Recalculator, every time.Duration) {
+	if every <= 0 {
+		every = time.Hour
+	}
+
+	ticker := time.NewTicker(every)
+	defer ticker.Stop()
+
+	// Run one recalculation cycle on startup in hourly mode so profiles are not stale.
+	if err := recalc.RecalculateAllSections(ctx); err != nil {
+		log.WithError(err).Warn("Initial section profile recalculation failed")
+	} else {
+		log.Info("Initial section profile recalculation completed")
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			runCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+			err := recalc.RecalculateAllSections(runCtx)
+			cancel()
+			if err != nil {
+				log.WithError(err).Warn("Hourly section profile recalculation failed")
+				continue
+			}
+			log.Info("Hourly section profile recalculation completed")
+		}
+	}
 }
 
 func waitForRelevanceEngine(ctx context.Context, db *store.Store, embedClient *embeddings.Client, cfg relevance.Config) (*relevance.Engine, error) {

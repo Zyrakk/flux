@@ -13,11 +13,21 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`{{ .Values.ingress.host }}`)
+    - match: Host(`{{ .Values.ingress.host }}`) && PathPrefix(`/api`)
       kind: Rule
       services:
         - name: {{ include "flux.fullname" . }}-api
           port: {{ .Values.api.port }}
+    - match: Host(`{{ .Values.ingress.host }}`)
+      kind: Rule
+      services:
+        {{- if .Values.frontend.enabled }}
+        - name: {{ include "flux.fullname" . }}-frontend
+          port: {{ .Values.frontend.port }}
+        {{- else }}
+        - name: {{ include "flux.fullname" . }}-api
+          port: {{ .Values.api.port }}
+        {{- end }}
   {{- if .Values.ingress.tls.enabled }}
   tls:
     secretName: {{ .Values.ingress.tls.secretName }}

@@ -47,6 +47,23 @@ func (s *Store) GetSectionByName(ctx context.Context, name string) (*models.Sect
 	return sec, nil
 }
 
+// GetSectionByID returns a section by id.
+func (s *Store) GetSectionByID(ctx context.Context, id string) (*models.Section, error) {
+	sec := &models.Section{}
+	err := s.pool.QueryRow(ctx, `
+		SELECT id, name, display_name, enabled, sort_order, max_briefing_articles, seed_keywords, config
+		FROM sections WHERE id = $1`, id).
+		Scan(&sec.ID, &sec.Name, &sec.DisplayName, &sec.Enabled,
+			&sec.SortOrder, &sec.MaxBriefingArticles, &sec.SeedKeywords, &sec.Config)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("getting section by id %q: %w", id, err)
+	}
+	return sec, nil
+}
+
 // CreateSection inserts a new section.
 func (s *Store) CreateSection(ctx context.Context, sec *models.Section) error {
 	return s.pool.QueryRow(ctx, `
@@ -56,6 +73,15 @@ func (s *Store) CreateSection(ctx context.Context, sec *models.Section) error {
 		sec.Name, sec.DisplayName, sec.Enabled, sec.SortOrder,
 		sec.MaxBriefingArticles, sec.SeedKeywords, sec.Config,
 	).Scan(&sec.ID)
+}
+
+// NextSectionSortOrder returns the next available section sort order.
+func (s *Store) NextSectionSortOrder(ctx context.Context) (int, error) {
+	var next int
+	if err := s.pool.QueryRow(ctx, `SELECT COALESCE(MAX(sort_order), 0) + 1 FROM sections`).Scan(&next); err != nil {
+		return 0, fmt.Errorf("getting next section sort order: %w", err)
+	}
+	return next, nil
 }
 
 // UpdateSection updates a section's mutable fields.
@@ -91,6 +117,26 @@ func (s *Store) UpdateSectionThreshold(ctx context.Context, sectionID string, th
 	)
 	if err != nil {
 		return fmt.Errorf("updating section threshold for %s: %w", sectionID, err)
+	}
+	return nil
+}
+
+// ReorderSections sets section sort_order based on the given ordered section IDs.
+func (s *Store) ReorderSections(ctx context.Context, sectionIDs []string) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("starting reorder transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	for i, id := range sectionIDs {
+		if _, err := tx.Exec(ctx, `UPDATE sections SET sort_order = $1 WHERE id = $2`, i+1, id); err != nil {
+			return fmt.Errorf("reordering section %s: %w", id, err)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("committing reorder transaction: %w", err)
 	}
 	return nil
 }

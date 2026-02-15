@@ -87,9 +87,10 @@ services:
       LLM_API_KEY: ${LLM_API_KEY:-}
       EMBEDDINGS_URL: http://embeddings-svc:8000
       API_PORT: "8080"
+      AUTH_TOKEN: ${AUTH_TOKEN:-}
+      PROFILE_RECALC_TRIGGER: ${PROFILE_RECALC_TRIGGER:-immediate}
+      PROFILE_RECALC_EVERY: ${PROFILE_RECALC_EVERY:-1h}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-    ports:
-      - "8080:8080"
     depends_on:
       postgres:
         condition: service_healthy
@@ -99,6 +100,22 @@ services:
         condition: service_healthy
       embeddings-svc:
         condition: service_healthy
+    networks:
+      - flux
+
+  frontend:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.frontend
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3000"
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:8080}
+    ports:
+      - "8080:3000"
+    depends_on:
+      - api
     networks:
       - flux
 
@@ -163,6 +180,8 @@ services:
       RELEVANCE_THRESHOLD_MAX: ${RELEVANCE_THRESHOLD_MAX:-0.60}
       RELEVANCE_THRESHOLD_STEP: ${RELEVANCE_THRESHOLD_STEP:-0.05}
       SOURCE_BOOSTS: ${SOURCE_BOOSTS:-tl;dr sec=0.1}
+      PROFILE_RECALC_TRIGGER: ${PROFILE_RECALC_TRIGGER:-immediate}
+      PROFILE_RECALC_EVERY: ${PROFILE_RECALC_EVERY:-1h}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:
       postgres:

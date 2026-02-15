@@ -4,6 +4,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Config holds all application configuration.
@@ -38,6 +39,8 @@ type Config struct {
 
 	// API Server
 	APIPort int
+	// Static bearer token auth for personal deployments.
+	AuthToken string
 
 	// Rate Limiting (domain -> "requests/period" e.g. "60/min")
 	RateLimits map[string]string
@@ -45,6 +48,10 @@ type Config struct {
 	// General
 	LogLevel  string
 	UserAgent string
+
+	// Profile recalculation
+	ProfileRecalcTrigger string
+	ProfileRecalcEvery   time.Duration
 }
 
 // Load reads configuration from environment variables.
@@ -64,8 +71,11 @@ func Load() *Config {
 		RelevanceThresholdStep:    getEnvFloat("RELEVANCE_THRESHOLD_STEP", 0.05),
 		BriefingSchedule:          getEnv("BRIEFING_SCHEDULE", "0 3 * * *"),
 		APIPort:                   getEnvInt("API_PORT", 8080),
+		AuthToken:                 strings.TrimSpace(getEnv("AUTH_TOKEN", "")),
 		LogLevel:                  getEnv("LOG_LEVEL", "info"),
 		UserAgent:                 getEnv("USER_AGENT", "Flux/1.0 (+https://github.com/zyrak/flux)"),
+		ProfileRecalcTrigger:      strings.ToLower(strings.TrimSpace(getEnv("PROFILE_RECALC_TRIGGER", "immediate"))),
+		ProfileRecalcEvery:        getEnvDuration("PROFILE_RECALC_EVERY", time.Hour),
 	}
 
 	cfg.RateLimits = parseRateLimits(getEnv("RATE_LIMITS", "reddit.com=60/min,hacker-news.firebaseio.com=30/min,api.github.com=83/min,default=10/min"))
@@ -94,6 +104,15 @@ func getEnvFloat(key string, fallback float64) float64 {
 	if val, ok := os.LookupEnv(key); ok {
 		if f, err := strconv.ParseFloat(val, 64); err == nil {
 			return f
+		}
+	}
+	return fallback
+}
+
+func getEnvDuration(key string, fallback time.Duration) time.Duration {
+	if val, ok := os.LookupEnv(key); ok {
+		if d, err := time.ParseDuration(strings.TrimSpace(val)); err == nil && d > 0 {
+			return d
 		}
 	}
 	return fallback

@@ -3,7 +3,7 @@
 # Binaries
 BINARIES := api worker-rss worker-hn worker-reddit processor briefing-gen
 BUILD_DIR := ./bin
-DOCKER_IMAGES := $(BINARIES) embeddings-svc
+DOCKER_IMAGES := $(BINARIES) embeddings-svc frontend
 
 # Go
 GOFLAGS := -ldflags="-w -s"

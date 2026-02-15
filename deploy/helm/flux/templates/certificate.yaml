@@ -1,0 +1,18 @@
+{{- $cm := .Values.ingress.tls.certManager | default dict -}}
+{{- $issuer := $cm.issuerRef | default dict -}}
+{{- if and .Values.ingress.enabled .Values.ingress.tls.enabled ($cm.enabled | default false) (.Capabilities.APIVersions.Has "cert-manager.io/v1/Certificate") }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "flux.fullname" . }}-tls
+  labels:
+    {{- include "flux.labels" . | nindent 4 }}
+spec:
+  secretName: {{ .Values.ingress.tls.secretName }}
+  dnsNames:
+    - {{ .Values.ingress.host | quote }}
+  issuerRef:
+    name: {{ ($issuer.name | default "letsencrypt-prod") | quote }}
+    kind: {{ ($issuer.kind | default "ClusterIssuer") | quote }}
+    group: cert-manager.io
+{{- end }}

@@ -1,0 +1,23 @@
+{
+  "name": "Flux",
+  "short_name": "Flux",
+  "description": "Briefing diario inteligente",
+  "display": "standalone",
+  "start_url": "/",
+  "scope": "/",
+  "background_color": "#0b0f14",
+  "theme_color": "#0b0f14",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    }
+  ]
+}
