@@ -12,11 +12,11 @@ type GLMAnalyzer struct {
 }
 
 // NewGLMAnalyzer creates a GLM analyzer.
-// Default endpoint: https://open.bigmodel.cn/api/paas/v4
+// Default endpoint: https://open.bigmodel.cn/api/coding/paas/v4
 // Default model: glm-4.7
 func NewGLMAnalyzer(endpoint, model, apiKey string) *GLMAnalyzer {
 	if endpoint == "" {
-		endpoint = "https://open.bigmodel.cn/api/paas/v4"
+		endpoint = "https://open.bigmodel.cn/api/coding/paas/v4"
 	}
 	if model == "" {
 		model = "glm-4.7"

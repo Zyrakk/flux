@@ -1,0 +1,36 @@
+{{- if .Values.processor.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "flux.fullname" . }}-processor
+  labels:
+    {{- include "flux.labels" . | nindent 4 }}
+    app.kubernetes.io/component: processor
+spec:
+  replicas: {{ .Values.processor.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "flux.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: processor
+  template:
+    metadata:
+      labels:
+        {{- include "flux.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: processor
+    spec:
+      {{- with .Values.processor.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: processor
+          image: "{{ if .Values.global.imageRegistry }}{{ .Values.global.imageRegistry }}/{{ end }}{{ .Values.processor.image.repository }}:{{ .Values.processor.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "flux.fullname" . }}-config
+            - secretRef:
+                name: {{ include "flux.fullname" . }}-secrets
+          resources:
+            {{- toYaml .Values.processor.resources | nindent 12 }}
+{{- end }}

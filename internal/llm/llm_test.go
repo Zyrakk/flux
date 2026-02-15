@@ -241,7 +241,7 @@ func TestBuildClassifyPrompt(t *testing.T) {
 func TestBuildSummarizePrompt(t *testing.T) {
 	prompt := BuildSummarizePrompt(testArticles[0])
 	assert.Contains(t, prompt, "Critical CVE")
-	assert.Contains(t, prompt, "vulnerability")
+	assert.Contains(t, prompt, "vulnerabilidad")
 }
 
 func TestStripCodeFences(t *testing.T) {

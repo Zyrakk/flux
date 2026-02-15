@@ -1,0 +1,19 @@
+{{- if .Values.embeddingsSvc.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "flux.fullname" . }}-embeddings-svc
+  labels:
+    {{- include "flux.labels" . | nindent 4 }}
+    app.kubernetes.io/component: embeddings-svc
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: {{ .Values.embeddingsSvc.port }}
+      targetPort: http
+      protocol: TCP
+  selector:
+    {{- include "flux.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: embeddings-svc
+{{- end }}

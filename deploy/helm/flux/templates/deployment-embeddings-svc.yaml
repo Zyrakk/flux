@@ -1,0 +1,50 @@
+{{- if .Values.embeddingsSvc.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "flux.fullname" . }}-embeddings-svc
+  labels:
+    {{- include "flux.labels" . | nindent 4 }}
+    app.kubernetes.io/component: embeddings-svc
+spec:
+  replicas: {{ .Values.embeddingsSvc.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "flux.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: embeddings-svc
+  template:
+    metadata:
+      labels:
+        {{- include "flux.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: embeddings-svc
+    spec:
+      {{- with .Values.embeddingsSvc.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: embeddings-svc
+          image: "{{ if .Values.global.imageRegistry }}{{ .Values.global.imageRegistry }}/{{ end }}{{ .Values.embeddingsSvc.image.repository }}:{{ .Values.embeddingsSvc.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.embeddingsSvc.port }}
+              protocol: TCP
+          env:
+            - name: EMBEDDINGS_MODEL_PATH
+              value: "/models/all-MiniLM-L6-v2"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.embeddingsSvc.resources | nindent 12 }}
+{{- end }}

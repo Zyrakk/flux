@@ -3,6 +3,7 @@
 # Binaries
 BINARIES := api worker-rss worker-hn worker-reddit processor briefing-gen
 BUILD_DIR := ./bin
+DOCKER_IMAGES := $(BINARIES) embeddings-svc
 
 # Go
 GOFLAGS := -ldflags="-w -s"
@@ -44,7 +45,7 @@ lint: ## Run golangci-lint
 # ============================================================================
 
 docker-build: ## Build all Docker images
-	@for svc in $(BINARIES); do \
+	@for svc in $(DOCKER_IMAGES); do \
 		echo "Building flux-$$svc image..."; \
 		docker build -f deploy/docker/Dockerfile.$$svc -t flux-$$svc:latest .; \
 	done

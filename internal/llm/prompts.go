@@ -12,59 +12,59 @@ const systemPrompt = `You are Flux, an intelligent news analysis system. You are
 // BuildClassifyPrompt creates the batch classification prompt.
 func BuildClassifyPrompt(articles []ArticleInput) string {
 	var sb strings.Builder
-	sb.WriteString(`Classify these articles. For each one, respond with a JSON array where each element has:
-- "article_id": the ID provided
-- "relevant": true/false (is this genuinely informative, not spam/clickbait/fluff?)
-- "section": one of ["cybersecurity", "tech", "economy", "world"] (confirm or correct the pre-assigned section)
-- "clickbait": true/false
-- "reason": one sentence explaining your classification
+	sb.WriteString(`Clasifica estos artículos. Para cada uno, responde con:
+- article_id: el ID proporcionado
+- relevant: true/false
+- section: una de [cybersecurity, tech, economy, world] (confirma o corrige la sección asignada)
+- clickbait: true/false
+- reason: una frase explicando por qué es o no relevante
 
-Respond ONLY with the JSON array, no other text.
-
-Articles:
+Artículos:
 `)
 
 	for i, a := range articles {
 		content := a.Content
-		if len(content) > 300 {
-			content = content[:300] + "..."
+		if len(content) > 200 {
+			content = content[:200]
 		}
-		sb.WriteString(fmt.Sprintf("%d. [ID: %s] [Section: %s] %s\n   %s\n\n",
-			i+1, a.ID, a.Section, a.Title, content))
+		sb.WriteString(fmt.Sprintf("%d. [ID: %s] %s - %s - %s\n",
+			i+1, a.ID, a.Title, a.Section, content))
 	}
+
+	sb.WriteString(`
+Responde SOLO con un JSON array.`)
 
 	return sb.String()
 }
 
 // BuildSummarizePrompt creates the single-article summarization prompt.
 func BuildSummarizePrompt(article ArticleInput) string {
-	return fmt.Sprintf(`Summarize this article in 2-3 sentences. Rules:
-- If it's a vulnerability: include severity and whether a patch exists.
-- If it's a tool/library: explain what it does and why it matters.
-- If it has concrete data (benchmarks, revenue, percentages): include key figures.
-- If it's financial news: include key figures and trend direction.
-- Be direct and technical. No filler.
+	return fmt.Sprintf(`Resume este artículo en 2-3 frases. Si es una vulnerabilidad, incluye severidad
+y si hay parche. Si es código/herramienta, explica qué hace y por qué importa.
+Si hay datos concretos (benchmarks, cifras), inclúyelos.
+Si es una noticia financiera, incluye cifras clave y tendencia.
 
-Title: %s
-Source: %s
-Content:
-%s`, article.Title, article.SourceType, truncateContent(article.Content, 4000))
+Título: %s
+Fuente: %s
+Sección: %s
+
+%s`, article.Title, article.SourceType, article.Section, truncateContent(article.Content, 4000))
 }
 
 // BuildBriefingPrompt creates the final briefing synthesis prompt.
 func BuildBriefingPrompt(sections []BriefingSection) string {
 	var sb strings.Builder
-	sb.WriteString(`Generate a morning briefing organized in the following sections.
-For each section, highlight the most important article first.
-If articles across sections are related, connect them explicitly.
-Format: Markdown. Tone: direct, technical, no filler.
+	sb.WriteString(`Genera un briefing matutino organizado en las siguientes secciones.
+Para cada sección, destaca el artículo más importante primero.
+Si hay artículos relacionados entre secciones, conéctalos explícitamente.
+Formato: Markdown. Tono: directo, técnico, sin relleno.
 
 `)
 
 	for _, sec := range sections {
-		sb.WriteString(fmt.Sprintf("## %s (max %d articles)\n", sec.DisplayName, sec.MaxArticles))
+		sb.WriteString(fmt.Sprintf("## %s (máx %d artículos)\n", sec.DisplayName, sec.MaxArticles))
 		for i, a := range sec.Articles {
-			sb.WriteString(fmt.Sprintf("%d. **%s** (%s)\n   %s\n   Source: %s\n\n",
+			sb.WriteString(fmt.Sprintf("%d. **%s** (%s)\n   %s\n   Fuente: %s\n\n",
 				i+1, a.Title, a.URL, a.Summary, a.SourceType))
 		}
 		sb.WriteString("\n")

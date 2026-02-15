@@ -63,13 +63,70 @@ workerHn:
   nodeSelector: {}
 
 # ============================================================================
+# Processor (daemon)
+# ============================================================================
+processor:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: flux-processor
+    tag: "latest"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  nodeSelector: {}
+
+# ============================================================================
+# Embeddings Service (FastAPI + all-MiniLM-L6-v2)
+# ============================================================================
+embeddingsSvc:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: flux-embeddings-svc
+    tag: "latest"
+  port: 8000
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  # N150 (x86) por defecto; para Oracle ARM cambia a arm64.
+  nodeSelector:
+    kubernetes.io/arch: amd64
+
+# ============================================================================
+# Briefing Generator (CronJob)
+# ============================================================================
+briefingGen:
+  enabled: true
+  schedule: "0 3 * * *"
+  image:
+    repository: flux-briefing-gen
+    tag: "latest"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  nodeSelector: {}
+
+# ============================================================================
 # LLM Configuration (Critical — choose your provider)
 # ============================================================================
 llm:
   # -- Provider: "glm" | "openai_compat" | "anthropic"
   provider: "glm"
   # -- API endpoint URL
-  endpoint: "https://open.bigmodel.cn/api/paas/v4"
+  endpoint: "https://open.bigmodel.cn/api/coding/paas/v4"
   # -- Model name
   model: "glm-4.7"
   # -- API key (reference to a secret)
@@ -109,6 +166,16 @@ rateLimit:
     api.github.com: "83/min"
     default: "10/min"
   userAgent: "Flux/1.0 (+https://github.com/zyrak/flux)"
+
+# ============================================================================
+# Relevance
+# ============================================================================
+relevance:
+  thresholdDefault: "0.30"
+  thresholdMin: "0.15"
+  thresholdMax: "0.60"
+  thresholdStep: "0.05"
+  sourceBoosts: "tl;dr sec=0.1"
 
 # ============================================================================
 # Ingress (Traefik IngressRoute)

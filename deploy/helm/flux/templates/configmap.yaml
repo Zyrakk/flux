@@ -8,9 +8,16 @@ data:
   DATABASE_URL: {{ include "flux.databaseURL" . | quote }}
   NATS_URL: {{ include "flux.natsURL" . | quote }}
   REDIS_URL: {{ include "flux.redisURL" . | quote }}
+  EMBEDDINGS_URL: {{ printf "http://%s-embeddings-svc:%d" (include "flux.fullname" .) (int .Values.embeddingsSvc.port) | quote }}
   LLM_PROVIDER: {{ .Values.llm.provider | quote }}
   LLM_ENDPOINT: {{ .Values.llm.endpoint | quote }}
   LLM_MODEL: {{ .Values.llm.model | quote }}
+  BRIEFING_SCHEDULE: {{ .Values.briefingGen.schedule | quote }}
+  RELEVANCE_THRESHOLD_DEFAULT: {{ .Values.relevance.thresholdDefault | quote }}
+  RELEVANCE_THRESHOLD_MIN: {{ .Values.relevance.thresholdMin | quote }}
+  RELEVANCE_THRESHOLD_MAX: {{ .Values.relevance.thresholdMax | quote }}
+  RELEVANCE_THRESHOLD_STEP: {{ .Values.relevance.thresholdStep | quote }}
+  SOURCE_BOOSTS: {{ .Values.relevance.sourceBoosts | quote }}
   API_PORT: {{ .Values.api.port | quote }}
   LOG_LEVEL: "info"
   USER_AGENT: {{ .Values.rateLimit.userAgent | quote }}

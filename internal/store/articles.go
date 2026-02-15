@@ -35,14 +35,15 @@ func (s *Store) CreateArticle(ctx context.Context, a *models.Article) error {
 func (s *Store) GetArticleByID(ctx context.Context, id string) (*models.Article, error) {
 	query := `
 		SELECT id, source_type, source_id, section_id, url, title, content, summary,
-			author, published_at, ingested_at, processed_at, relevance_score,
+			author, published_at, ingested_at, processed_at, embedding, relevance_score,
 			categories, status, metadata
 		FROM articles WHERE id = $1`
 
 	a := &models.Article{}
+	var embVec *pgvector.Vector
 	err := s.pool.QueryRow(ctx, query, id).Scan(
 		&a.ID, &a.SourceType, &a.SourceID, &a.SectionID, &a.URL, &a.Title, &a.Content,
-		&a.Summary, &a.Author, &a.PublishedAt, &a.IngestedAt, &a.ProcessedAt,
+		&a.Summary, &a.Author, &a.PublishedAt, &a.IngestedAt, &a.ProcessedAt, &embVec,
 		&a.RelevanceScore, &a.Categories, &a.Status, &a.Metadata,
 	)
 	if err == pgx.ErrNoRows {
@@ -50,6 +51,9 @@ func (s *Store) GetArticleByID(ctx context.Context, id string) (*models.Article,
 	}
 	if err != nil {
 		return nil, fmt.Errorf("getting article %s: %w", id, err)
+	}
+	if embVec != nil {
+		a.Embedding = embVec.Slice()
 	}
 	return a, nil
 }
@@ -155,6 +159,94 @@ func (s *Store) UpdateArticleSection(ctx context.Context, id, sectionID string, 
 		`UPDATE articles SET section_id = $1, relevance_score = $2 WHERE id = $3`,
 		sectionID, score, id)
 	return err
+}
+
+// UpdateArticleSectionAndStatus assigns section/score and status in one write.
+func (s *Store) UpdateArticleSectionAndStatus(ctx context.Context, id, sectionID string, score float64, status string) error {
+	var processedAt *time.Time
+	if status == models.StatusProcessed || status == models.StatusBriefed {
+		now := time.Now()
+		processedAt = &now
+	}
+
+	_, err := s.pool.Exec(ctx, `
+		UPDATE articles
+		SET section_id = $1, relevance_score = $2, status = $3, processed_at = COALESCE($4, processed_at)
+		WHERE id = $5`,
+		sectionID, score, status, processedAt, id,
+	)
+	return err
+}
+
+// CountPendingAboveThreshold returns pending article count above threshold in one section.
+func (s *Store) CountPendingAboveThreshold(ctx context.Context, sectionID string, threshold float64) (int, error) {
+	var count int
+	err := s.pool.QueryRow(ctx, `
+		SELECT COUNT(*)
+		FROM articles
+		WHERE section_id = $1
+			AND status = 'pending'
+			AND relevance_score IS NOT NULL
+			AND relevance_score >= $2`,
+		sectionID, threshold,
+	).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("counting pending above threshold for section %s: %w", sectionID, err)
+	}
+	return count, nil
+}
+
+// ListPendingArticlesForSection returns top pending articles by relevance score.
+func (s *Store) ListPendingArticlesForSection(ctx context.Context, sectionID string, threshold float64, limit int) ([]*models.Article, int, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+
+	var total int
+	if err := s.pool.QueryRow(ctx, `
+		SELECT COUNT(*)
+		FROM articles
+		WHERE section_id = $1
+			AND status = 'pending'
+			AND relevance_score IS NOT NULL
+			AND relevance_score >= $2`,
+		sectionID, threshold,
+	).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("counting pending articles for section %s: %w", sectionID, err)
+	}
+
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, source_type, source_id, section_id, url, title, content, summary,
+			author, published_at, ingested_at, processed_at, relevance_score,
+			categories, status, metadata
+		FROM articles
+		WHERE section_id = $1
+			AND status = 'pending'
+			AND relevance_score IS NOT NULL
+			AND relevance_score >= $2
+		ORDER BY relevance_score DESC, ingested_at DESC
+		LIMIT $3`,
+		sectionID, threshold, limit,
+	)
+	if err != nil {
+		return nil, 0, fmt.Errorf("listing pending articles for section %s: %w", sectionID, err)
+	}
+	defer rows.Close()
+
+	out := make([]*models.Article, 0, limit)
+	for rows.Next() {
+		a := &models.Article{}
+		if err := rows.Scan(
+			&a.ID, &a.SourceType, &a.SourceID, &a.SectionID, &a.URL, &a.Title, &a.Content,
+			&a.Summary, &a.Author, &a.PublishedAt, &a.IngestedAt, &a.ProcessedAt,
+			&a.RelevanceScore, &a.Categories, &a.Status, &a.Metadata,
+		); err != nil {
+			return nil, 0, fmt.Errorf("scanning pending section article: %w", err)
+		}
+		out = append(out, a)
+	}
+
+	return out, total, rows.Err()
 }
 
 // UpdateArticleSummary stores the LLM-generated summary.

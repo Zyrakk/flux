@@ -10,6 +10,7 @@ require (
 	github.com/nats-io/nats.go v1.38.0
 	github.com/pgvector/pgvector-go v0.2.2
 	github.com/redis/go-redis/v9 v9.7.0
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
 )

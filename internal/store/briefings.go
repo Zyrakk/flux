@@ -57,3 +57,20 @@ func (s *Store) ListBriefings(ctx context.Context, limit, offset int) ([]*models
 	}
 	return briefings, rows.Err()
 }
+
+// GetBriefingByID returns one briefing by id.
+func (s *Store) GetBriefingByID(ctx context.Context, id string) (*models.Briefing, error) {
+	b := &models.Briefing{}
+	err := s.pool.QueryRow(ctx, `
+		SELECT id, generated_at, content, article_ids, metadata
+		FROM briefings WHERE id = $1`,
+		id,
+	).Scan(&b.ID, &b.GeneratedAt, &b.Content, &b.ArticleIDs, &b.Metadata)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("getting briefing %s: %w", id, err)
+	}
+	return b, nil
+}

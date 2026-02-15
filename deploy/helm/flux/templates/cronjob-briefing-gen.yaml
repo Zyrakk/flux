@@ -1,0 +1,42 @@
+{{- if .Values.briefingGen.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "flux.fullname" . }}-briefing-gen
+  labels:
+    {{- include "flux.labels" . | nindent 4 }}
+    app.kubernetes.io/component: briefing-gen
+spec:
+  schedule: {{ .Values.briefingGen.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            {{- include "flux.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: briefing-gen
+        spec:
+          {{- with .Values.briefingGen.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          restartPolicy: OnFailure
+          containers:
+            - name: briefing-gen
+              image: "{{ if .Values.global.imageRegistry }}{{ .Values.global.imageRegistry }}/{{ end }}{{ .Values.briefingGen.image.repository }}:{{ .Values.briefingGen.image.tag }}"
+              imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+              env:
+                - name: BRIEFING_MODE
+                  value: "cronjob"
+              envFrom:
+                - configMapRef:
+                    name: {{ include "flux.fullname" . }}-config
+                - secretRef:
+                    name: {{ include "flux.fullname" . }}-secrets
+              resources:
+                {{- toYaml .Values.briefingGen.resources | nindent 16 }}
+{{- end }}

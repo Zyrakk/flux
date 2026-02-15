@@ -54,6 +54,25 @@ services:
   # ============================================================================
   # Application
   # ============================================================================
+  embeddings-svc:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.embeddings-svc
+    environment:
+      EMBEDDINGS_MODEL_PATH: /models/all-MiniLM-L6-v2
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    cpus: 0.5
+    mem_limit: 512m
+    networks:
+      - flux
+
   api:
     build:
       context: .
@@ -63,9 +82,10 @@ services:
       NATS_URL: nats://nats:4222
       REDIS_URL: redis://redis:6379/0
       LLM_PROVIDER: ${LLM_PROVIDER:-glm}
-      LLM_ENDPOINT: ${LLM_ENDPOINT:-https://open.bigmodel.cn/api/paas/v4}
+      LLM_ENDPOINT: ${LLM_ENDPOINT:-https://open.bigmodel.cn/api/coding/paas/v4}
       LLM_MODEL: ${LLM_MODEL:-glm-4.7}
       LLM_API_KEY: ${LLM_API_KEY:-}
+      EMBEDDINGS_URL: http://embeddings-svc:8000
       API_PORT: "8080"
       LOG_LEVEL: ${LOG_LEVEL:-info}
     ports:
@@ -76,6 +96,8 @@ services:
       nats:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      embeddings-svc:
         condition: service_healthy
     networks:
       - flux
@@ -124,6 +146,59 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
+    networks:
+      - flux
+
+  processor:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.processor
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-flux}:${POSTGRES_PASSWORD:-flux}@postgres:5432/${POSTGRES_DB:-flux}?sslmode=disable
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      EMBEDDINGS_URL: http://embeddings-svc:8000
+      RELEVANCE_THRESHOLD_DEFAULT: ${RELEVANCE_THRESHOLD_DEFAULT:-0.30}
+      RELEVANCE_THRESHOLD_MIN: ${RELEVANCE_THRESHOLD_MIN:-0.15}
+      RELEVANCE_THRESHOLD_MAX: ${RELEVANCE_THRESHOLD_MAX:-0.60}
+      RELEVANCE_THRESHOLD_STEP: ${RELEVANCE_THRESHOLD_STEP:-0.05}
+      SOURCE_BOOSTS: ${SOURCE_BOOSTS:-tl;dr sec=0.1}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      embeddings-svc:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - flux
+
+  briefing-gen:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.briefing-gen
+    profiles: ["manual"]
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-flux}:${POSTGRES_PASSWORD:-flux}@postgres:5432/${POSTGRES_DB:-flux}?sslmode=disable
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      LLM_PROVIDER: ${LLM_PROVIDER:-glm}
+      LLM_ENDPOINT: ${LLM_ENDPOINT:-https://open.bigmodel.cn/api/coding/paas/v4}
+      LLM_MODEL: ${LLM_MODEL:-glm-4.7}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      BRIEFING_MODE: cronjob
+      BRIEFING_SCHEDULE: ${BRIEFING_SCHEDULE:-0 3 * * *}
+      RELEVANCE_THRESHOLD_DEFAULT: ${RELEVANCE_THRESHOLD_DEFAULT:-0.30}
+      RELEVANCE_THRESHOLD_MIN: ${RELEVANCE_THRESHOLD_MIN:-0.15}
+      RELEVANCE_THRESHOLD_MAX: ${RELEVANCE_THRESHOLD_MAX:-0.60}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
     networks:
       - flux
 

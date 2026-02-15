@@ -75,3 +75,22 @@ func (s *Store) ToggleSection(ctx context.Context, id string, enabled bool) erro
 	_, err := s.pool.Exec(ctx, `UPDATE sections SET enabled = $1 WHERE id = $2`, enabled, id)
 	return err
 }
+
+// UpdateSectionThreshold stores the current relevance threshold in section config.
+func (s *Store) UpdateSectionThreshold(ctx context.Context, sectionID string, threshold float64) error {
+	_, err := s.pool.Exec(ctx, `
+		UPDATE sections
+		SET config = jsonb_set(
+			COALESCE(config, '{}'::jsonb),
+			'{relevance_threshold}',
+			to_jsonb($1::float8),
+			true
+		)
+		WHERE id = $2`,
+		threshold, sectionID,
+	)
+	if err != nil {
+		return fmt.Errorf("updating section threshold for %s: %w", sectionID, err)
+	}
+	return nil
+}

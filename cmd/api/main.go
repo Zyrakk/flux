@@ -67,6 +67,12 @@ type sourceResponse struct {
 	Sections      []store.SourceSectionRef `json:"sections"`
 }
 
+type briefingListItem struct {
+	ID          string          `json:"id"`
+	GeneratedAt time.Time       `json:"generated_at"`
+	Metadata    json.RawMessage `json:"metadata,omitempty"`
+}
+
 func main() {
 	cfg := config.Load()
 	setupLogging(cfg.LogLevel)
@@ -132,6 +138,7 @@ func main() {
 
 		r.Get("/briefings/latest", latestBriefingHandler(db))
 		r.Get("/briefings", listBriefingsHandler(db))
+		r.Get("/briefings/{id}", getBriefingHandler(db))
 
 		r.Post("/feedback", createFeedbackHandler(db))
 	})
@@ -518,7 +525,33 @@ func listBriefingsHandler(db *store.Store) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		respondJSON(w, briefings)
+
+		out := make([]briefingListItem, 0, len(briefings))
+		for _, b := range briefings {
+			out = append(out, briefingListItem{
+				ID:          b.ID,
+				GeneratedAt: b.GeneratedAt,
+				Metadata:    b.Metadata,
+			})
+		}
+
+		respondJSON(w, out)
+	}
+}
+
+func getBriefingHandler(db *store.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		briefing, err := db.GetBriefingByID(r.Context(), id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if briefing == nil {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		respondJSON(w, briefing)
 	}
 }
 

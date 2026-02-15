@@ -23,6 +23,19 @@ type Config struct {
 	LLMModel    string
 	LLMAPIKey   string
 
+	// Embeddings
+	EmbeddingsURL string
+
+	// Relevance
+	RelevanceThresholdDefault float64
+	RelevanceThresholdMin     float64
+	RelevanceThresholdMax     float64
+	RelevanceThresholdStep    float64
+	SourceBoosts              map[string]float64
+
+	// Briefing
+	BriefingSchedule string
+
 	// API Server
 	APIPort int
 
@@ -37,19 +50,26 @@ type Config struct {
 // Load reads configuration from environment variables.
 func Load() *Config {
 	cfg := &Config{
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://flux:flux@localhost:5432/flux?sslmode=disable"),
-		NatsURL:     getEnv("NATS_URL", "nats://localhost:4222"),
-		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379/0"),
-		LLMProvider: getEnv("LLM_PROVIDER", "glm"),
-		LLMEndpoint: getEnv("LLM_ENDPOINT", "https://open.bigmodel.cn/api/paas/v4"),
-		LLMModel:    getEnv("LLM_MODEL", "glm-4.7"),
-		LLMAPIKey:   getEnv("LLM_API_KEY", ""),
-		APIPort:     getEnvInt("API_PORT", 8080),
-		LogLevel:    getEnv("LOG_LEVEL", "info"),
-		UserAgent:   getEnv("USER_AGENT", "Flux/1.0 (+https://github.com/zyrak/flux)"),
+		DatabaseURL:               getEnv("DATABASE_URL", "postgres://flux:flux@localhost:5432/flux?sslmode=disable"),
+		NatsURL:                   getEnv("NATS_URL", "nats://localhost:4222"),
+		RedisURL:                  getEnv("REDIS_URL", "redis://localhost:6379/0"),
+		LLMProvider:               getEnv("LLM_PROVIDER", "glm"),
+		LLMEndpoint:               getEnv("LLM_ENDPOINT", "https://open.bigmodel.cn/api/coding/paas/v4"),
+		LLMModel:                  getEnv("LLM_MODEL", "glm-4.7"),
+		LLMAPIKey:                 getEnv("LLM_API_KEY", ""),
+		EmbeddingsURL:             getEnv("EMBEDDINGS_URL", "http://embeddings-svc:8000"),
+		RelevanceThresholdDefault: getEnvFloat("RELEVANCE_THRESHOLD_DEFAULT", 0.30),
+		RelevanceThresholdMin:     getEnvFloat("RELEVANCE_THRESHOLD_MIN", 0.15),
+		RelevanceThresholdMax:     getEnvFloat("RELEVANCE_THRESHOLD_MAX", 0.60),
+		RelevanceThresholdStep:    getEnvFloat("RELEVANCE_THRESHOLD_STEP", 0.05),
+		BriefingSchedule:          getEnv("BRIEFING_SCHEDULE", "0 3 * * *"),
+		APIPort:                   getEnvInt("API_PORT", 8080),
+		LogLevel:                  getEnv("LOG_LEVEL", "info"),
+		UserAgent:                 getEnv("USER_AGENT", "Flux/1.0 (+https://github.com/zyrak/flux)"),
 	}
 
 	cfg.RateLimits = parseRateLimits(getEnv("RATE_LIMITS", "reddit.com=60/min,hacker-news.firebaseio.com=30/min,api.github.com=83/min,default=10/min"))
+	cfg.SourceBoosts = parseFloatMap(getEnv("SOURCE_BOOSTS", ""))
 
 	return cfg
 }
@@ -70,6 +90,15 @@ func getEnvInt(key string, fallback int) int {
 	return fallback
 }
 
+func getEnvFloat(key string, fallback float64) float64 {
+	if val, ok := os.LookupEnv(key); ok {
+		if f, err := strconv.ParseFloat(val, 64); err == nil {
+			return f
+		}
+	}
+	return fallback
+}
+
 // parseRateLimits parses "domain1=rate1,domain2=rate2" into a map.
 func parseRateLimits(s string) map[string]string {
 	limits := make(map[string]string)
@@ -80,4 +109,24 @@ func parseRateLimits(s string) map[string]string {
 		}
 	}
 	return limits
+}
+
+func parseFloatMap(s string) map[string]float64 {
+	out := make(map[string]float64)
+	for _, pair := range strings.Split(s, ",") {
+		parts := strings.SplitN(strings.TrimSpace(pair), "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key := strings.TrimSpace(parts[0])
+		if key == "" {
+			continue
+		}
+		value, err := strconv.ParseFloat(strings.TrimSpace(parts[1]), 64)
+		if err != nil {
+			continue
+		}
+		out[strings.ToLower(key)] = value
+	}
+	return out
 }
