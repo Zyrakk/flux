@@ -159,6 +159,8 @@ embeddingsSvc:
 briefingGen:
   enabled: true
   schedule: "0 3 * * *"
+  # IANA timezone. Ensures schedule runs at local 03:00 instead of controller timezone.
+  timeZone: "Europe/Madrid"
   image:
     repository: ghcr.io/zyrakk/flux-briefing-gen
     tag: "latest"

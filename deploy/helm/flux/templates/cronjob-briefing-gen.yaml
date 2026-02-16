@@ -8,6 +8,9 @@ metadata:
     app.kubernetes.io/component: briefing-gen
 spec:
   schedule: {{ .Values.briefingGen.schedule | quote }}
+  {{- with .Values.briefingGen.timeZone }}
+  timeZone: {{ . | quote }}
+  {{- end }}
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 3

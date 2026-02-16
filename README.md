@@ -318,6 +318,7 @@ Default chart values use GHCR-hosted Flux images and pull them directly from eac
 - `api.image.repository: ghcr.io/zyrakk/flux-api` (same pattern for other Flux services)
 - `global.imagePullPolicy: IfNotPresent`
 - `global.imageRegistry: ""` (kept empty so dependency charts keep their own upstream registries)
+- `briefingGen.timeZone: Europe/Madrid` (`0 3 * * *` runs at 03:00 local time)
 
 CI publishes multi-arch images (`linux/amd64`, `linux/arm64`) to GHCR for all Flux services.
 
