@@ -50,7 +50,9 @@ MVP (Phase 3) includes:
                                      v
 +----------+      +------------------+------------------+      +--------+
 | workers  +----->|                API                  +----->| Redis  |
-| RSS / HN | NATS |      Go (chi, auth, REST)          |      +--------+
+| RSS/HN/  | NATS |      Go (chi, auth, REST)          |      +--------+
+| Reddit/  |      |                                    |
+| GitHub   |      |                                    |
 +-----+----+      +------------------+------------------+
       |                              |
       |                              v
@@ -99,7 +101,8 @@ cmd/
   api/            # REST API
   worker-rss/     # RSS ingestion
   worker-hn/      # Hacker News ingestion
-  worker-reddit/  # Reddit worker (binary/dockerfile present, not wired by default in Helm/Compose)
+  worker-reddit/  # Reddit ingestion (OAuth script flow)
+  worker-github/  # GitHub releases ingestion
   processor/      # embeddings + relevance + section profile hourly loop
   briefing-gen/   # briefing generation job/daemon
 internal/         # domain logic: config, llm, profile, store, queue, etc.
@@ -126,7 +129,12 @@ cp .env.example .env
 Edit at minimum:
 
 - `LLM_API_KEY`
+- `POSTGRES_PASSWORD`
 - `AUTH_TOKEN` (optional, recommended for personal deployments)
+
+Security notes:
+- Keep secrets only in `.env` (already gitignored).
+- Do not put real credentials directly in `docker-compose.yml`.
 
 ### 2) Start stack
 
@@ -160,7 +168,7 @@ docker compose --profile manual up -d briefing-gen
 ### 4) Observe logs
 
 ```bash
-docker compose logs -f api processor worker-rss worker-hn
+docker compose logs -f api processor worker-rss worker-hn worker-reddit worker-github
 ```
 
 ## Frontend Routes
@@ -298,32 +306,44 @@ Main env vars (`.env.example`):
 | Briefing | `BRIEFING_SCHEDULE` |
 | API/Auth | `API_PORT`, `AUTH_TOKEN`, `LOG_LEVEL` |
 | Profile Recalc | `PROFILE_RECALC_TRIGGER`, `PROFILE_RECALC_EVERY` |
-| Workers | `WORKER_MODE_RSS`, `WORKER_MODE_HN`, `HN_MIN_SCORE`, `RATE_LIMITS`, `USER_AGENT` |
+| Workers | `WORKER_MODE_RSS`, `WORKER_MODE_HN`, `WORKER_MODE_REDDIT`, `WORKER_MODE_GITHUB`, `HN_MIN_SCORE`, `RATE_LIMITS`, `USER_AGENT`, `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET`, `REDDIT_USERNAME`, `REDDIT_PASSWORD`, `GITHUB_TOKEN` |
 | Frontend | `API_INTERNAL_URL` |
 
 ## Deploy To k3s With Helm
 
-### 1) Build and make images available to cluster nodes
+### 1) Image strategy (default: GHCR)
 
-By default chart value is:
+Default chart values use GHCR-hosted Flux images and pull them directly from each node:
 
-- `global.imagePullPolicy: Never`
+- `api.image.repository: ghcr.io/zyrakk/flux-api` (same pattern for other Flux services)
+- `global.imagePullPolicy: IfNotPresent`
+- `global.imageRegistry: ""` (kept empty so dependency charts keep their own upstream registries)
 
-That means every node running Flux pods must already have the images locally (or you must override image pull policy and use a registry).
+CI publishes multi-arch images (`linux/amd64`, `linux/arm64`) to GHCR for all Flux services.
 
-Build locally:
+For local-only image testing (without registry), use the override file:
 
 ```bash
-make docker-build
+helm upgrade --install flux ./deploy/helm/flux -n flux \
+  -f deploy/helm/flux/values.local-images.yaml
 ```
 
-If using a registry, set repositories/tags accordingly and use `IfNotPresent` or `Always`.
+### Secret management (recommended)
+
+- Copy `deploy/helm/flux/values.secrets.example.yaml` to `deploy/helm/flux/values.secrets.local.yaml` (gitignored pattern recommended) and fill real values.
+- Or create a Kubernetes secret manually and set:
+  - `secrets.create=false`
+  - `secrets.existingSecret=<your-secret-name>`
 
 ### 2) Install / upgrade
 
 ```bash
 helm upgrade --install flux ./deploy/helm/flux -n flux --create-namespace
 ```
+
+If your GHCR images are private, create a pull secret and set:
+
+- `global.imagePullSecrets[0]=<secret-name>`
 
 ### 3) Ingress routing split
 
@@ -382,17 +402,17 @@ k3s checks:
 
 ## Troubleshooting
 
-### Frontend pod in `ErrImageNeverPull`
+### Pods in `ErrImagePull` / `ErrImageNeverPull`
 
 Cause:
 
-- Helm default `global.imagePullPolicy: Never`
-- Image not present on node
+- Chart/release still points to local `flux-*:latest` images with `imagePullPolicy: Never`
+- Or local-images override is used but images were not imported on the target node
 
 Fix:
 
-- Load/build images on node, or
-- Push to registry and set chart image references + pull policy.
+- Use default GHCR chart values (`ghcr.io/zyrakk/flux-*`, `IfNotPresent`), or
+- Keep local mode and import images to the node(s) that schedule Flux workloads.
 
 ### `flux-tls` secret not found
 
@@ -431,7 +451,7 @@ Fix:
 
 Check:
 
-- Worker logs (`worker-rss`, `worker-hn`)
+- Worker logs (`worker-rss`, `worker-hn`, `worker-reddit`, `worker-github`)
 - Source enabled flags in `/admin/sources`
 - Database connectivity and NATS health
 

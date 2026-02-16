@@ -24,6 +24,7 @@ spec:
           nodeSelector:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          {{- include "flux.imagePullSecrets" . | nindent 10 }}
           restartPolicy: OnFailure
           containers:
             - name: worker-hn
@@ -38,7 +39,7 @@ spec:
                 - configMapRef:
                     name: {{ include "flux.fullname" . }}-config
                 - secretRef:
-                    name: {{ include "flux.fullname" . }}-secrets
+                    name: {{ include "flux.secretName" . }}
               resources:
                 {{- toYaml .Values.workerHn.resources | nindent 16 }}
 {{- end }}

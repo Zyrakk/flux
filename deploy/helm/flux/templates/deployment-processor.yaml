@@ -22,6 +22,7 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- include "flux.imagePullSecrets" . | nindent 6 }}
       containers:
         - name: processor
           image: "{{ if .Values.global.imageRegistry }}{{ .Values.global.imageRegistry }}/{{ end }}{{ .Values.processor.image.repository }}:{{ .Values.processor.image.tag }}"
@@ -30,7 +31,7 @@ spec:
             - configMapRef:
                 name: {{ include "flux.fullname" . }}-config
             - secretRef:
-                name: {{ include "flux.fullname" . }}-secrets
+                name: {{ include "flux.secretName" . }}
           resources:
             {{- toYaml .Values.processor.resources | nindent 12 }}
 {{- end }}

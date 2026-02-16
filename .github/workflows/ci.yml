@@ -46,7 +46,7 @@ jobs:
       packages: write
     strategy:
       matrix:
-        service: [api, worker-rss, worker-hn, worker-reddit, processor, briefing-gen]
+        service: [api, worker-rss, worker-hn, worker-reddit, processor, briefing-gen, embeddings-svc, frontend]
     steps:
       - uses: actions/checkout@v4
 

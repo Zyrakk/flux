@@ -25,6 +25,7 @@ spec:
       nodeSelector:
         {{- toYaml .Values.api.nodeSelector | nindent 8 }}
       {{- end }}
+      {{- include "flux.imagePullSecrets" . | nindent 6 }}
       containers:
         - name: frontend
           image: "{{ if .Values.global.imageRegistry }}{{ .Values.global.imageRegistry }}/{{ end }}{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"

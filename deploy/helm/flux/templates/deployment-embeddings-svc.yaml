@@ -22,6 +22,7 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- include "flux.imagePullSecrets" . | nindent 6 }}
       containers:
         - name: embeddings-svc
           image: "{{ if .Values.global.imageRegistry }}{{ .Values.global.imageRegistry }}/{{ end }}{{ .Values.embeddingsSvc.image.repository }}:{{ .Values.embeddingsSvc.image.tag }}"

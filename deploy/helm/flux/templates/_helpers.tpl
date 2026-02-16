@@ -47,6 +47,29 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
+Secret name (chart-managed or pre-existing).
+*/}}
+{{- define "flux.secretName" -}}
+{{- if .Values.secrets.existingSecret -}}
+{{ .Values.secrets.existingSecret }}
+{{- else -}}
+{{ include "flux.fullname" . }}-secrets
+{{- end -}}
+{{- end }}
+
+{{/*
+Render image pull secrets for Flux workloads.
+*/}}
+{{- define "flux.imagePullSecrets" -}}
+{{- if .Values.global.imagePullSecrets }}
+imagePullSecrets:
+  {{- range .Values.global.imagePullSecrets }}
+  - name: {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
 Database URL
 */}}
 {{- define "flux.databaseURL" -}}

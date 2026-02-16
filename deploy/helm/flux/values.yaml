@@ -4,8 +4,11 @@
 
 # -- Global settings
 global:
+  # Keep empty to avoid overriding dependency chart images (PostgreSQL/Redis/NATS).
   imageRegistry: ""
-  imagePullPolicy: Never
+  imagePullPolicy: IfNotPresent
+  # Optional pull secrets for private registries.
+  imagePullSecrets: []
   security:
     allowInsecureImages: true
 
@@ -15,7 +18,7 @@ global:
 api:
   replicaCount: 1
   image:
-    repository: flux-api
+    repository: ghcr.io/zyrakk/flux-api
     tag: "latest"
   port: 8080
   resources:
@@ -35,7 +38,7 @@ frontend:
   enabled: true
   replicaCount: 1
   image:
-    repository: flux-frontend
+    repository: ghcr.io/zyrakk/flux-frontend
     tag: "latest"
   port: 3000
   resources:
@@ -54,7 +57,7 @@ workerRss:
   enabled: true
   schedule: "*/30 * * * *"
   image:
-    repository: flux-worker-rss
+    repository: ghcr.io/zyrakk/flux-worker-rss
     tag: "latest"
   resources:
     requests:
@@ -70,7 +73,37 @@ workerHn:
   schedule: "*/15 * * * *"
   minScore: 10
   image:
-    repository: flux-worker-hn
+    repository: ghcr.io/zyrakk/flux-worker-hn
+    tag: "latest"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+  nodeSelector: {}
+
+workerReddit:
+  enabled: true
+  schedule: "*/30 * * * *"
+  image:
+    repository: ghcr.io/zyrakk/flux-worker-reddit
+    tag: "latest"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+  nodeSelector: {}
+
+workerGithub:
+  enabled: true
+  schedule: "0 * * * *"
+  image:
+    repository: ghcr.io/zyrakk/flux-worker-github
     tag: "latest"
   resources:
     requests:
@@ -88,7 +121,7 @@ processor:
   enabled: true
   replicaCount: 1
   image:
-    repository: flux-processor
+    repository: ghcr.io/zyrakk/flux-processor
     tag: "latest"
   resources:
     requests:
@@ -106,7 +139,7 @@ embeddingsSvc:
   enabled: true
   replicaCount: 1
   image:
-    repository: flux-embeddings-svc
+    repository: ghcr.io/zyrakk/flux-embeddings-svc
     tag: "latest"
   port: 8000
   resources:
@@ -127,7 +160,7 @@ briefingGen:
   enabled: true
   schedule: "0 3 * * *"
   image:
-    repository: flux-briefing-gen
+    repository: ghcr.io/zyrakk/flux-briefing-gen
     tag: "latest"
   resources:
     requests:
@@ -181,8 +214,9 @@ rateLimit:
   # -- Rate limits per domain. Format: "requests/period" (sec, min, hour)
   limits:
     reddit.com: "60/min"
+    oauth.reddit.com: "60/min"
     hacker-news.firebaseio.com: "30/min"
-    api.github.com: "83/min"
+    api.github.com: "5000/hour"
     default: "10/min"
   userAgent: "Flux/1.0 (+https://github.com/zyrak/flux)"
 
@@ -200,6 +234,24 @@ relevance:
 # Auth & section profile recalc
 # ============================================================================
 auth:
+  token: ""
+
+secrets:
+  # When true (default), chart creates a Secret from values below.
+  # For production, prefer existingSecret + leave credential values empty.
+  create: true
+  # Name of a pre-created Secret with keys:
+  # AUTH_TOKEN, LLM_API_KEY, REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET,
+  # REDDIT_USERNAME, REDDIT_PASSWORD, GITHUB_TOKEN
+  existingSecret: ""
+
+reddit:
+  clientId: ""
+  clientSecret: ""
+  username: ""
+  password: ""
+
+github:
   token: ""
 
 profileRecalc:
@@ -232,8 +284,9 @@ postgresql:
     repository: bitnamilegacy/postgresql
   auth:
     username: postgres
-    password: "flux"
-    postgresPassword: "flux"
+    # Override in values.local.yaml (gitignored) or use postgresql.auth.existingSecret.
+    password: "change-me"
+    postgresPassword: "change-me"
     database: flux
   primary:
     persistence:
@@ -290,7 +343,7 @@ migration:
   # -- Runs as a Helm hook on install/upgrade
   enabled: false
   image:
-    repository: flux-api
+    repository: ghcr.io/zyrakk/flux-api
     tag: "latest"
   # -- Force migration job to a specific node when using local-only images.
   nodeSelector: {}

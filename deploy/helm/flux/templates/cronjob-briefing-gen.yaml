@@ -24,6 +24,7 @@ spec:
           nodeSelector:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          {{- include "flux.imagePullSecrets" . | nindent 10 }}
           restartPolicy: OnFailure
           containers:
             - name: briefing-gen
@@ -36,7 +37,7 @@ spec:
                 - configMapRef:
                     name: {{ include "flux.fullname" . }}-config
                 - secretRef:
-                    name: {{ include "flux.fullname" . }}-secrets
+                    name: {{ include "flux.secretName" . }}
               resources:
                 {{- toYaml .Values.briefingGen.resources | nindent 16 }}
 {{- end }}

@@ -1,0 +1,42 @@
+global:
+  imagePullPolicy: Never
+
+api:
+  image:
+    repository: flux-api
+
+frontend:
+  image:
+    repository: flux-frontend
+
+workerRss:
+  image:
+    repository: flux-worker-rss
+
+workerHn:
+  image:
+    repository: flux-worker-hn
+
+workerReddit:
+  image:
+    repository: flux-worker-reddit
+
+workerGithub:
+  image:
+    repository: flux-worker-github
+
+processor:
+  image:
+    repository: flux-processor
+
+embeddingsSvc:
+  image:
+    repository: flux-embeddings-svc
+
+briefingGen:
+  image:
+    repository: flux-briefing-gen
+
+migration:
+  image:
+    repository: flux-api

@@ -21,6 +21,7 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- include "flux.imagePullSecrets" . | nindent 6 }}
       containers:
         - name: api
           image: "{{ if .Values.global.imageRegistry }}{{ .Values.global.imageRegistry }}/{{ end }}{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
@@ -33,7 +34,7 @@ spec:
             - configMapRef:
                 name: {{ include "flux.fullname" . }}-config
             - secretRef:
-                name: {{ include "flux.fullname" . }}-secrets
+                name: {{ include "flux.secretName" . }}
           livenessProbe:
             httpGet:
               path: /healthz
