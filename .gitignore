@@ -41,6 +41,9 @@ docker-compose.override.yml
 # Helm
 deploy/helm/flux/charts/
 deploy/helm/flux/*.tgz
+deploy/helm/flux/values.local.yaml
+deploy/helm/flux/values.secrets.yaml
+deploy/helm/flux/values.secrets.local.yaml
 
 # Misc
 tmp/

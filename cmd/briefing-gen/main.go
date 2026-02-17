@@ -29,6 +29,7 @@ type sectionRun struct {
 	Section    *models.Section
 	Threshold  float64
 	Candidates []*models.Article
+	ClusterMap map[string]clusterInfo
 	Total      int
 	Filtered   int
 }
@@ -36,6 +37,13 @@ type sectionRun struct {
 type sectionMeta struct {
 	Total    int `json:"total"`
 	Filtered int `json:"filtered"`
+}
+
+type clusterInfo struct {
+	SeenIn       []string
+	ReportedBy   []string
+	SuppressedID []string
+	Bonus        float64
 }
 
 func main() {
@@ -131,23 +139,35 @@ func runOnce(ctx context.Context, cfg *config.Config, db *store.Store, analyzer 
 	totalCandidates := 0
 	for _, sec := range enabledSections {
 		threshold := thresholdFromSection(sec, cfg)
-		candidates, total, err := db.ListPendingArticlesForSection(ctx, sec.ID, threshold, sec.MaxBriefingArticles)
+		fetchLimit := sec.MaxBriefingArticles * 6
+		if fetchLimit < sec.MaxBriefingArticles {
+			fetchLimit = sec.MaxBriefingArticles
+		}
+		if fetchLimit < 20 {
+			fetchLimit = 20
+		}
+
+		candidates, total, err := db.ListPendingArticlesForSection(ctx, sec.ID, threshold, fetchLimit)
 		if err != nil {
 			return fmt.Errorf("listing pending section articles (%s): %w", sec.Name, err)
 		}
+
+		clusteredCandidates, clusterMap := collapseClusteredCandidates(candidates, sec.MaxBriefingArticles)
 		sectionRuns[sec.ID] = &sectionRun{
 			Section:    sec,
 			Threshold:  threshold,
-			Candidates: candidates,
+			Candidates: clusteredCandidates,
+			ClusterMap: clusterMap,
 			Total:      total,
 		}
 		log.WithFields(log.Fields{
 			"section":        sec.Name,
 			"threshold":      threshold,
 			"pending_total":  total,
-			"selected_count": len(candidates),
+			"fetched_count":  len(candidates),
+			"selected_count": len(clusteredCandidates),
 		}).Info("Collected candidate articles for section")
-		totalCandidates += len(candidates)
+		totalCandidates += len(clusteredCandidates)
 	}
 
 	if totalCandidates == 0 {
@@ -194,6 +214,8 @@ func runOnce(ctx context.Context, cfg *config.Config, db *store.Store, analyzer 
 		classByID := indexClassifications(classifyInputs, classifications)
 		summarizedCount := 0
 		for _, article := range run.Candidates {
+			cluster := run.ClusterMap[article.ID]
+
 			classification, ok := classByID[article.ID]
 			if !ok {
 				partial = true
@@ -208,6 +230,9 @@ func runOnce(ctx context.Context, cfg *config.Config, db *store.Store, analyzer 
 			if !classification.Relevant || classification.Clickbait {
 				run.Filtered++
 				processedIDs[article.ID] = struct{}{}
+				for _, suppressedID := range cluster.SuppressedID {
+					processedIDs[suppressedID] = struct{}{}
+				}
 				continue
 			}
 
@@ -228,6 +253,9 @@ func runOnce(ctx context.Context, cfg *config.Config, db *store.Store, analyzer 
 			if len(summarizedBySection[targetSection.Name]) >= targetSection.MaxBriefingArticles {
 				run.Filtered++
 				processedIDs[article.ID] = struct{}{}
+				for _, suppressedID := range cluster.SuppressedID {
+					processedIDs[suppressedID] = struct{}{}
+				}
 				continue
 			}
 
@@ -256,9 +284,14 @@ func runOnce(ctx context.Context, cfg *config.Config, db *store.Store, analyzer 
 				Summary:    summary,
 				URL:        article.URL,
 				SourceType: article.SourceType,
+				SeenIn:     cluster.SeenIn,
+				ReportedBy: cluster.ReportedBy,
 			})
 			summarizedCount++
 			briefedIDs[article.ID] = struct{}{}
+			for _, suppressedID := range cluster.SuppressedID {
+				processedIDs[suppressedID] = struct{}{}
+			}
 		}
 		log.WithFields(log.Fields{
 			"section":          sec.Name,
@@ -479,6 +512,308 @@ func buildBriefingSections(enabledSections []*models.Section, summarizedBySectio
 	return out
 }
 
+func collapseClusteredCandidates(candidates []*models.Article, maxArticles int) ([]*models.Article, map[string]clusterInfo) {
+	if len(candidates) == 0 {
+		return []*models.Article{}, map[string]clusterInfo{}
+	}
+	if maxArticles <= 0 {
+		maxArticles = len(candidates)
+	}
+
+	type clusterEntry struct {
+		primary *models.Article
+		info    clusterInfo
+		score   float64
+		base    float64
+	}
+
+	buckets := make(map[string][]*models.Article)
+	order := make([]string, 0, len(candidates))
+
+	for _, article := range candidates {
+		clusterID := clusterIDForArticle(article)
+		if _, exists := buckets[clusterID]; !exists {
+			order = append(order, clusterID)
+		}
+		buckets[clusterID] = append(buckets[clusterID], article)
+	}
+
+	entries := make([]clusterEntry, 0, len(buckets))
+	for _, clusterID := range order {
+		members := buckets[clusterID]
+		if len(members) == 0 {
+			continue
+		}
+
+		primary := pickClusterPrimary(members)
+		seenIn, reportedBy := collectClusterCoverage(members)
+		suppressed := make([]string, 0, len(members)-1)
+		for _, member := range members {
+			if member.ID == primary.ID {
+				continue
+			}
+			suppressed = append(suppressed, member.ID)
+		}
+		sort.Strings(suppressed)
+
+		sourceCount := len(seenIn)
+		bonus := 0.0
+		if sourceCount > 1 {
+			bonus = float64(sourceCount-1) * 0.1
+		}
+
+		base := relevanceScore(primary)
+		entries = append(entries, clusterEntry{
+			primary: primary,
+			info: clusterInfo{
+				SeenIn:       seenIn,
+				ReportedBy:   reportedBy,
+				SuppressedID: suppressed,
+				Bonus:        bonus,
+			},
+			score: base + bonus,
+			base:  base,
+		})
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].score != entries[j].score {
+			return entries[i].score > entries[j].score
+		}
+		if entries[i].base != entries[j].base {
+			return entries[i].base > entries[j].base
+		}
+		if !entries[i].primary.IngestedAt.Equal(entries[j].primary.IngestedAt) {
+			return entries[i].primary.IngestedAt.After(entries[j].primary.IngestedAt)
+		}
+		return entries[i].primary.ID < entries[j].primary.ID
+	})
+
+	limit := maxArticles
+	if limit > len(entries) {
+		limit = len(entries)
+	}
+
+	selected := make([]*models.Article, 0, limit)
+	infoByArticle := make(map[string]clusterInfo, limit)
+	for i := 0; i < limit; i++ {
+		selected = append(selected, entries[i].primary)
+		infoByArticle[entries[i].primary.ID] = entries[i].info
+	}
+
+	return selected, infoByArticle
+}
+
+func clusterIDForArticle(article *models.Article) string {
+	meta := parseArticleMetadata(article.Metadata)
+	clusterID := metadataString(meta, "cluster_id")
+	if clusterID != "" {
+		return clusterID
+	}
+	return article.ID
+}
+
+func pickClusterPrimary(members []*models.Article) *models.Article {
+	if len(members) == 0 {
+		return nil
+	}
+
+	for _, member := range members {
+		primaryID := metadataString(parseArticleMetadata(member.Metadata), "cluster_primary_id")
+		if primaryID == "" {
+			continue
+		}
+		for _, candidate := range members {
+			if candidate.ID == primaryID {
+				return candidate
+			}
+		}
+	}
+
+	best := members[0]
+	bestSignal := articleSignal(best)
+	for i := 1; i < len(members); i++ {
+		candidate := members[i]
+		candidateSignal := articleSignal(candidate)
+		if candidateSignal > bestSignal {
+			best = candidate
+			bestSignal = candidateSignal
+			continue
+		}
+		if candidateSignal < bestSignal {
+			continue
+		}
+		if candidate.IngestedAt.Before(best.IngestedAt) {
+			best = candidate
+			continue
+		}
+		if candidate.IngestedAt.Equal(best.IngestedAt) && candidate.ID < best.ID {
+			best = candidate
+		}
+	}
+
+	return best
+}
+
+func collectClusterCoverage(members []*models.Article) ([]string, []string) {
+	type coverage struct {
+		plain    string
+		detailed string
+		signal   float64
+		order    int
+	}
+
+	seen := make(map[string]coverage)
+	for i, member := range members {
+		plain, detailed, signal := sourceCoverage(member)
+		if plain == "" {
+			continue
+		}
+
+		existing, ok := seen[plain]
+		if !ok {
+			seen[plain] = coverage{
+				plain:    plain,
+				detailed: detailed,
+				signal:   signal,
+				order:    i,
+			}
+			continue
+		}
+
+		if signal > existing.signal {
+			existing.detailed = detailed
+			existing.signal = signal
+		}
+		seen[plain] = existing
+	}
+
+	items := make([]coverage, 0, len(seen))
+	for _, item := range seen {
+		items = append(items, item)
+	}
+
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].signal != items[j].signal {
+			return items[i].signal > items[j].signal
+		}
+		if items[i].order != items[j].order {
+			return items[i].order < items[j].order
+		}
+		return items[i].plain < items[j].plain
+	})
+
+	seenIn := make([]string, 0, len(items))
+	reportedBy := make([]string, 0, len(items))
+	for _, item := range items {
+		seenIn = append(seenIn, item.plain)
+		reportedBy = append(reportedBy, item.detailed)
+	}
+	return seenIn, reportedBy
+}
+
+func sourceCoverage(article *models.Article) (plain string, detailed string, signal float64) {
+	meta := parseArticleMetadata(article.Metadata)
+	sourceType := strings.ToLower(strings.TrimSpace(article.SourceType))
+
+	switch sourceType {
+	case "hn":
+		score := metadataFloat(meta, "hn_score")
+		if score > 0 {
+			return "HN", fmt.Sprintf("HN (%d pts)", int(score)), score
+		}
+		return "HN", "HN", 0
+	case "reddit":
+		sub := metadataString(meta, "subreddit")
+		sub = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(sub)), "r/")
+		if sub == "" {
+			sub = "reddit"
+		}
+		score := metadataFloat(meta, "reddit_score")
+		plain = "r/" + sub
+		if score > 0 {
+			return plain, fmt.Sprintf("Reddit %s (%d pts)", plain, int(score)), score
+		}
+		return plain, "Reddit " + plain, 0
+	default:
+		name := metadataString(meta, "source_name")
+		if name == "" {
+			if sourceType == "github" {
+				name = metadataString(meta, "repo")
+			}
+		}
+		if name == "" {
+			name = article.SourceType
+		}
+		return name, name, 0
+	}
+}
+
+func articleSignal(article *models.Article) float64 {
+	meta := parseArticleMetadata(article.Metadata)
+	hn := metadataFloat(meta, "hn_score")
+	reddit := metadataFloat(meta, "reddit_score")
+	if hn > reddit {
+		return hn
+	}
+	return reddit
+}
+
+func relevanceScore(article *models.Article) float64 {
+	if article == nil || article.RelevanceScore == nil {
+		return 0
+	}
+	return *article.RelevanceScore
+}
+
+func parseArticleMetadata(raw json.RawMessage) map[string]interface{} {
+	if len(raw) == 0 || string(raw) == "null" {
+		return map[string]interface{}{}
+	}
+
+	out := map[string]interface{}{}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return map[string]interface{}{}
+	}
+	return out
+}
+
+func metadataString(meta map[string]interface{}, key string) string {
+	if meta == nil {
+		return ""
+	}
+	value, ok := meta[key]
+	if !ok {
+		return ""
+	}
+	str, _ := value.(string)
+	return strings.TrimSpace(str)
+}
+
+func metadataFloat(meta map[string]interface{}, key string) float64 {
+	if meta == nil {
+		return 0
+	}
+	value, ok := meta[key]
+	if !ok {
+		return 0
+	}
+	switch typed := value.(type) {
+	case float64:
+		return typed
+	case float32:
+		return float64(typed)
+	case int:
+		return float64(typed)
+	case int64:
+		return float64(typed)
+	case int32:
+		return float64(typed)
+	default:
+		return 0
+	}
+}
+
 func buildFallbackBriefing(sections []llm.BriefingSection) string {
 	if len(sections) == 0 {
 		return "# Briefing parcial\n\nNo hubo artículos listos para sintetizar en este ciclo."
@@ -491,6 +826,12 @@ func buildFallbackBriefing(sections []llm.BriefingSection) string {
 		for _, article := range sec.Articles {
 			sb.WriteString("- **" + article.Title + "**\n")
 			sb.WriteString("  " + article.Summary + "\n")
+			if len(article.ReportedBy) > 1 {
+				sb.WriteString("  Reportado por: " + strings.Join(article.ReportedBy, ", ") + "\n")
+			}
+			if len(article.SeenIn) > 1 {
+				sb.WriteString("  📡 Visto en: " + strings.Join(article.SeenIn, ", ") + "\n")
+			}
 			sb.WriteString("  " + article.URL + "\n\n")
 		}
 	}

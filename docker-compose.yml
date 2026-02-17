@@ -6,7 +6,7 @@ services:
     image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-flux}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-flux}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: ${POSTGRES_DB:-flux}
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -78,7 +78,7 @@ services:
       context: .
       dockerfile: deploy/docker/Dockerfile.api
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-flux}:${POSTGRES_PASSWORD:-flux}@postgres:5432/${POSTGRES_DB:-flux}?sslmode=disable
+      DATABASE_URL: postgres://${POSTGRES_USER:-flux}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-flux}?sslmode=disable
       NATS_URL: nats://nats:4222
       REDIS_URL: redis://redis:6379/0
       LLM_PROVIDER: ${LLM_PROVIDER:-glm}
@@ -124,12 +124,12 @@ services:
       context: .
       dockerfile: deploy/docker/Dockerfile.worker-rss
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-flux}:${POSTGRES_PASSWORD:-flux}@postgres:5432/${POSTGRES_DB:-flux}?sslmode=disable
+      DATABASE_URL: postgres://${POSTGRES_USER:-flux}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-flux}?sslmode=disable
       NATS_URL: nats://nats:4222
       REDIS_URL: redis://redis:6379/0
       LOG_LEVEL: ${LOG_LEVEL:-info}
       WORKER_MODE: ${WORKER_MODE_RSS:-daemon}
-      RATE_LIMITS: ${RATE_LIMITS:-reddit.com=60/min,hacker-news.firebaseio.com=30/min,api.github.com=83/min,default=10/min}
+      RATE_LIMITS: ${RATE_LIMITS:-reddit.com=60/min,oauth.reddit.com=60/min,hacker-news.firebaseio.com=30/min,api.github.com=5000/hour,default=10/min}
       USER_AGENT: ${USER_AGENT:-Flux/1.0 (+https://github.com/zyrak/flux)}
     depends_on:
       postgres:
@@ -147,14 +147,65 @@ services:
       context: .
       dockerfile: deploy/docker/Dockerfile.worker-hn
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-flux}:${POSTGRES_PASSWORD:-flux}@postgres:5432/${POSTGRES_DB:-flux}?sslmode=disable
+      DATABASE_URL: postgres://${POSTGRES_USER:-flux}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-flux}?sslmode=disable
       NATS_URL: nats://nats:4222
       REDIS_URL: redis://redis:6379/0
       LOG_LEVEL: ${LOG_LEVEL:-info}
       WORKER_MODE: ${WORKER_MODE_HN:-daemon}
       HN_MIN_SCORE: ${HN_MIN_SCORE:-10}
-      RATE_LIMITS: ${RATE_LIMITS:-reddit.com=60/min,hacker-news.firebaseio.com=30/min,api.github.com=83/min,default=10/min}
+      RATE_LIMITS: ${RATE_LIMITS:-reddit.com=60/min,oauth.reddit.com=60/min,hacker-news.firebaseio.com=30/min,api.github.com=5000/hour,default=10/min}
       USER_AGENT: ${USER_AGENT:-Flux/1.0 (+https://github.com/zyrak/flux)}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - flux
+
+  worker-reddit:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.worker-reddit
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-flux}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-flux}?sslmode=disable
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      WORKER_MODE: ${WORKER_MODE_REDDIT:-daemon}
+      RATE_LIMITS: ${RATE_LIMITS:-reddit.com=60/min,oauth.reddit.com=60/min,hacker-news.firebaseio.com=30/min,api.github.com=5000/hour,default=10/min}
+      USER_AGENT: ${USER_AGENT:-Flux/1.0 (+https://github.com/zyrak/flux)}
+      REDDIT_CLIENT_ID: ${REDDIT_CLIENT_ID:-}
+      REDDIT_CLIENT_SECRET: ${REDDIT_CLIENT_SECRET:-}
+      REDDIT_USERNAME: ${REDDIT_USERNAME:-}
+      REDDIT_PASSWORD: ${REDDIT_PASSWORD:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - flux
+
+  worker-github:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.worker-github
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-flux}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-flux}?sslmode=disable
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      WORKER_MODE: ${WORKER_MODE_GITHUB:-daemon}
+      RATE_LIMITS: ${RATE_LIMITS:-reddit.com=60/min,oauth.reddit.com=60/min,hacker-news.firebaseio.com=30/min,api.github.com=5000/hour,default=10/min}
+      USER_AGENT: ${USER_AGENT:-Flux/1.0 (+https://github.com/zyrak/flux)}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -171,7 +222,7 @@ services:
       context: .
       dockerfile: deploy/docker/Dockerfile.processor
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-flux}:${POSTGRES_PASSWORD:-flux}@postgres:5432/${POSTGRES_DB:-flux}?sslmode=disable
+      DATABASE_URL: postgres://${POSTGRES_USER:-flux}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-flux}?sslmode=disable
       NATS_URL: nats://nats:4222
       REDIS_URL: redis://redis:6379/0
       EMBEDDINGS_URL: http://embeddings-svc:8000
@@ -200,7 +251,7 @@ services:
       dockerfile: deploy/docker/Dockerfile.briefing-gen
     profiles: ["manual"]
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-flux}:${POSTGRES_PASSWORD:-flux}@postgres:5432/${POSTGRES_DB:-flux}?sslmode=disable
+      DATABASE_URL: postgres://${POSTGRES_USER:-flux}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-flux}?sslmode=disable
       NATS_URL: nats://nats:4222
       REDIS_URL: redis://redis:6379/0
       LLM_PROVIDER: ${LLM_PROVIDER:-glm}

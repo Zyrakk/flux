@@ -78,7 +78,7 @@ func Load() *Config {
 		ProfileRecalcEvery:        getEnvDuration("PROFILE_RECALC_EVERY", time.Hour),
 	}
 
-	cfg.RateLimits = parseRateLimits(getEnv("RATE_LIMITS", "reddit.com=60/min,hacker-news.firebaseio.com=30/min,api.github.com=83/min,default=10/min"))
+	cfg.RateLimits = parseRateLimits(getEnv("RATE_LIMITS", "reddit.com=60/min,oauth.reddit.com=60/min,hacker-news.firebaseio.com=30/min,api.github.com=5000/hour,default=10/min"))
 	cfg.SourceBoosts = parseFloatMap(getEnv("SOURCE_BOOSTS", ""))
 
 	return cfg

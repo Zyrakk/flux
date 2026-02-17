@@ -1,7 +1,7 @@
 .PHONY: build test lint docker-build helm-install compose-up compose-down migrate clean
 
 # Binaries
-BINARIES := api worker-rss worker-hn worker-reddit processor briefing-gen
+BINARIES := api worker-rss worker-hn worker-reddit worker-github processor briefing-gen
 BUILD_DIR := ./bin
 DOCKER_IMAGES := $(BINARIES) embeddings-svc frontend
 

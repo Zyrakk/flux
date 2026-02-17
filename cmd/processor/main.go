@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/signal"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zyrak/flux/internal/config"
+	"github.com/zyrak/flux/internal/dedup"
 	"github.com/zyrak/flux/internal/embeddings"
 	"github.com/zyrak/flux/internal/models"
 	"github.com/zyrak/flux/internal/profile"
@@ -27,6 +29,7 @@ type processor struct {
 	store     *store.Store
 	embed     *embeddings.Client
 	relevance *relevance.Engine
+	semDedup  *dedup.SemanticClusterer
 }
 
 func main() {
@@ -66,6 +69,7 @@ func main() {
 		store:     db,
 		embed:     embedClient,
 		relevance: relEngine,
+		semDedup:  dedup.NewSemanticClusterer(),
 	}
 
 	profileRecalc := profile.NewRecalculator(db, embedClient, 0.7)
@@ -174,6 +178,10 @@ func (p *processor) handleNewArticle(data []byte) error {
 		return fmt.Errorf("updating embedding for article %s: %w", article.ID, err)
 	}
 
+	if err := p.applySemanticDedup(ctx, article, articleEmbedding); err != nil {
+		return fmt.Errorf("semantic dedup for article %s: %w", article.ID, err)
+	}
+
 	result, err := p.relevance.EvaluateArticle(ctx, article, articleEmbedding)
 	if err != nil {
 		return fmt.Errorf("evaluating relevance for article %s: %w", article.ID, err)
@@ -204,6 +212,69 @@ func (p *processor) handleNewArticle(data []byte) error {
 		logFields["new_threshold"] = newThreshold
 	}
 	log.WithFields(logFields).Info("Article processed")
+
+	return nil
+}
+
+func (p *processor) applySemanticDedup(ctx context.Context, article *models.Article, embedding []float32) error {
+	neighbors, err := p.store.FindSimilarArticlesLast48h(ctx, embedding, article.ID, dedup.SemanticNeighborsLimit)
+	if err != nil {
+		return err
+	}
+
+	neighborArticles := make([]dedup.SemanticArticle, 0, len(neighbors))
+	for _, neighbor := range neighbors {
+		if neighbor == nil {
+			continue
+		}
+		neighborArticles = append(neighborArticles, dedup.SemanticArticle{
+			ID:         neighbor.ID,
+			Title:      neighbor.Title,
+			SourceType: neighbor.SourceType,
+			Similarity: neighbor.Similarity,
+			IngestedAt: neighbor.IngestedAt,
+			Metadata:   neighbor.Metadata,
+		})
+	}
+
+	result, clustered, err := p.semDedup.Cluster(dedup.SemanticArticle{
+		ID:         article.ID,
+		Title:      article.Title,
+		SourceType: article.SourceType,
+		Similarity: 1.0,
+		IngestedAt: article.IngestedAt,
+		Metadata:   article.Metadata,
+	}, neighborArticles)
+	if err != nil {
+		return err
+	}
+	if !clustered || result == nil {
+		return nil
+	}
+
+	ids := make([]string, 0, len(result.MetadataUpdates))
+	for id := range result.MetadataUpdates {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+
+	for _, id := range ids {
+		if err := p.store.UpdateArticleMetadata(ctx, id, result.MetadataUpdates[id]); err != nil {
+			return err
+		}
+	}
+
+	if currentMetadata, ok := result.MetadataUpdates[article.ID]; ok {
+		article.Metadata = currentMetadata
+	}
+
+	log.WithFields(log.Fields{
+		"article_id":      article.ID,
+		"cluster_id":      result.ClusterID,
+		"primary_id":      result.PrimaryID,
+		"cluster_members": len(result.MemberIDs),
+		"matched_ids":     result.MatchedIDs,
+	}).Info("Semantic dedup cluster assigned")
 
 	return nil
 }

@@ -57,6 +57,8 @@ func BuildBriefingPrompt(sections []BriefingSection) string {
 	sb.WriteString(`Genera un briefing matutino organizado en las siguientes secciones.
 Para cada sección, destaca el artículo más importante primero.
 Si hay artículos relacionados entre secciones, conéctalos explícitamente.
+Si un artículo tiene múltiples fuentes, conserva explícitamente una línea con este formato:
+"📡 Visto en: HN, r/netsec, ...".
 Formato: Markdown. Tono: directo, técnico, sin relleno.
 
 `)
@@ -64,8 +66,14 @@ Formato: Markdown. Tono: directo, técnico, sin relleno.
 	for _, sec := range sections {
 		sb.WriteString(fmt.Sprintf("## %s (máx %d artículos)\n", sec.DisplayName, sec.MaxArticles))
 		for i, a := range sec.Articles {
-			sb.WriteString(fmt.Sprintf("%d. **%s** (%s)\n   %s\n   Fuente: %s\n\n",
-				i+1, a.Title, a.URL, a.Summary, a.SourceType))
+			sb.WriteString(fmt.Sprintf("%d. **%s** (%s)\n   %s\n", i+1, a.Title, a.URL, a.Summary))
+			if len(a.ReportedBy) > 1 {
+				sb.WriteString(fmt.Sprintf("   Reportado por: %s\n", strings.Join(a.ReportedBy, ", ")))
+			}
+			if len(a.SeenIn) > 1 {
+				sb.WriteString(fmt.Sprintf("   📡 Visto en: %s\n", strings.Join(a.SeenIn, ", ")))
+			}
+			sb.WriteString(fmt.Sprintf("   Fuente principal: %s\n\n", a.SourceType))
 		}
 		sb.WriteString("\n")
 	}

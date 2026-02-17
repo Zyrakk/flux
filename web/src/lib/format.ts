@@ -65,6 +65,8 @@ export function sourceBadge(sourceType: string): { icon: string; label: string; 
 		return { icon: '🟧', label: 'HN', className: 'bg-orange-500/20 text-orange-100 border border-orange-400/40' };
 	case 'reddit':
 		return { icon: '🔵', label: 'Reddit', className: 'bg-blue-500/20 text-blue-100 border border-blue-400/40' };
+	case 'github':
+		return { icon: '🐙', label: 'GitHub', className: 'bg-slate-500/20 text-slate-100 border border-slate-400/40' };
 	case 'rss':
 	default:
 		return { icon: '🟠', label: 'RSS', className: 'bg-amber-500/20 text-amber-100 border border-amber-400/40' };

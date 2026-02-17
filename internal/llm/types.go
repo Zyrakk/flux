@@ -47,6 +47,8 @@ type SummarizedArticle struct {
 	Summary    string   `json:"summary"`
 	URL        string   `json:"url"`
 	SourceType string   `json:"source_type"`
+	SeenIn     []string `json:"seen_in,omitempty"`
+	ReportedBy []string `json:"reported_by,omitempty"`
 	Categories []string `json:"categories,omitempty"`
 }
 
