@@ -312,6 +312,7 @@ func runOnce(ctx context.Context, cfg *config.Config, db *store.Store, analyzer 
 			tokensBriefing += estimateTokens(content)
 			log.WithField("sections_included", len(briefingSections)).Info("LLM briefing synthesized")
 		}
+		content = appendMultiSourceCoverage(content, briefingSections)
 	} else {
 		partial = true
 		content = buildFallbackBriefing(nil)
@@ -836,6 +837,47 @@ func buildFallbackBriefing(sections []llm.BriefingSection) string {
 		}
 	}
 	return strings.TrimSpace(sb.String())
+}
+
+func appendMultiSourceCoverage(content string, sections []llm.BriefingSection) string {
+	lines := make([]string, 0)
+	seen := make(map[string]struct{})
+
+	for _, section := range sections {
+		for _, article := range section.Articles {
+			if len(article.SeenIn) <= 1 {
+				continue
+			}
+
+			key := strings.TrimSpace(article.ID)
+			if key == "" {
+				key = strings.TrimSpace(article.Title)
+			}
+			if key == "" {
+				continue
+			}
+			if _, exists := seen[key]; exists {
+				continue
+			}
+			seen[key] = struct{}{}
+
+			title := strings.TrimSpace(article.Title)
+			if title == "" {
+				title = "Historia sin titulo"
+			}
+			lines = append(lines, fmt.Sprintf("- %s\n  📡 Visto en: %s", title, strings.Join(article.SeenIn, ", ")))
+		}
+	}
+
+	if len(lines) == 0 {
+		return content
+	}
+
+	base := strings.TrimSpace(content)
+	if base == "" {
+		base = "# Briefing parcial"
+	}
+	return base + "\n\n### 📡 Cobertura Multi-fuente\n" + strings.Join(lines, "\n")
 }
 
 func firstParagraph(content *string, maxChars int) string {
