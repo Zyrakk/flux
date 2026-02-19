@@ -23,6 +23,7 @@
 	let toDate = '';
 	let likedOnly = false;
 
+	let filtersOpen = false;
 	let sentinel: HTMLDivElement | null = null;
 	let observer: IntersectionObserver | null = null;
 
@@ -63,24 +64,12 @@
 		const params = new URLSearchParams();
 		params.set('page', String(nextPage));
 		params.set('per_page', String(perPage));
-		if (selectedSections.length > 0) {
-			params.set('sections', selectedSections.join(','));
-		}
-		if (sourceRef) {
-			params.set('source_ref', sourceRef);
-		}
-		if (status) {
-			params.set('status', status);
-		}
-		if (fromDate) {
-			params.set('from', fromDate);
-		}
-		if (toDate) {
-			params.set('to', toDate);
-		}
-		if (likedOnly) {
-			params.set('liked_only', 'true');
-		}
+		if (selectedSections.length > 0) params.set('sections', selectedSections.join(','));
+		if (sourceRef) params.set('source_ref', sourceRef);
+		if (status) params.set('status', status);
+		if (fromDate) params.set('from', fromDate);
+		if (toDate) params.set('to', toDate);
+		if (likedOnly) params.set('liked_only', 'true');
 		return params.toString();
 	}
 
@@ -93,9 +82,7 @@
 	}
 
 	async function loadMore() {
-		if (loadingMore || !hasMore) {
-			return;
-		}
+		if (loadingMore || !hasMore) return;
 		loadingMore = true;
 		try {
 			const query = buildQuery(page);
@@ -133,6 +120,7 @@
 				setActionActive(article, action, false);
 				setActionFeedbackID(article, action, undefined);
 				adjustActionCount(article, action, -1);
+				articles = articles; // Trigger Svelte reactivity
 				return;
 			}
 
@@ -154,6 +142,7 @@
 				article.feedback.liked = false;
 				article.feedback.likes = Math.max(0, article.feedback.likes - 1);
 			}
+			articles = articles; // Trigger Svelte reactivity
 		} catch (err) {
 			await handleError(err);
 		}
@@ -169,223 +158,233 @@
 	}
 
 	function relevanceWidth(score?: number): string {
-		if (score == null) {
-			return '0%';
-		}
-		const normalized = Math.max(0, Math.min(1, score));
-		return `${Math.round(normalized * 100)}%`;
+		if (score == null) return '0%';
+		return `${Math.round(Math.max(0, Math.min(1, score)) * 100)}%`;
 	}
 
 	function getActionActive(article: Article, action: FeedbackAction): boolean {
 		switch (action) {
-			case 'like':
-				return article.feedback.liked;
-			case 'dislike':
-				return article.feedback.disliked;
-			case 'save':
-				return article.feedback.saved;
+			case 'like': return article.feedback.liked;
+			case 'dislike': return article.feedback.disliked;
+			case 'save': return article.feedback.saved;
 		}
 	}
 
 	function setActionActive(article: Article, action: FeedbackAction, value: boolean): void {
 		switch (action) {
-			case 'like':
-				article.feedback.liked = value;
-				break;
-			case 'dislike':
-				article.feedback.disliked = value;
-				break;
-			case 'save':
-				article.feedback.saved = value;
-				break;
+			case 'like': article.feedback.liked = value; break;
+			case 'dislike': article.feedback.disliked = value; break;
+			case 'save': article.feedback.saved = value; break;
 		}
 	}
 
 	function adjustActionCount(article: Article, action: FeedbackAction, delta: number): void {
 		switch (action) {
-			case 'like':
-				article.feedback.likes = Math.max(0, article.feedback.likes + delta);
-				break;
-			case 'dislike':
-				article.feedback.dislikes = Math.max(0, article.feedback.dislikes + delta);
-				break;
-			case 'save':
-				article.feedback.saves = Math.max(0, article.feedback.saves + delta);
-				break;
+			case 'like': article.feedback.likes = Math.max(0, article.feedback.likes + delta); break;
+			case 'dislike': article.feedback.dislikes = Math.max(0, article.feedback.dislikes + delta); break;
+			case 'save': article.feedback.saves = Math.max(0, article.feedback.saves + delta); break;
 		}
 	}
 
 	function getActionFeedbackID(article: Article, action: FeedbackAction): string | undefined {
 		switch (action) {
-			case 'like':
-				return article.feedback.like_id;
-			case 'dislike':
-				return article.feedback.dislike_id;
-			case 'save':
-				return article.feedback.save_id;
+			case 'like': return article.feedback.like_id;
+			case 'dislike': return article.feedback.dislike_id;
+			case 'save': return article.feedback.save_id;
 		}
 	}
 
 	function setActionFeedbackID(article: Article, action: FeedbackAction, id?: string): void {
 		switch (action) {
-			case 'like':
-				article.feedback.like_id = id;
-				break;
-			case 'dislike':
-				article.feedback.dislike_id = id;
-				break;
-			case 'save':
-				article.feedback.save_id = id;
-				break;
+			case 'like': article.feedback.like_id = id; break;
+			case 'dislike': article.feedback.dislike_id = id; break;
+			case 'save': article.feedback.save_id = id; break;
 		}
 	}
+
+	$: activeFilterCount = selectedSections.length + (sourceRef ? 1 : 0) + (status ? 1 : 0) + (fromDate ? 1 : 0) + (toDate ? 1 : 0) + (likedOnly ? 1 : 0);
 </script>
 
-<section class="space-y-4">
-	<div class="surface p-4">
-		<h1 class="text-xl font-semibold">Feed Completo</h1>
-		<p class="mt-1 text-sm text-text-2">Todos los artículos ingestados, con filtros y feedback.</p>
-
-		<div class="mt-4 space-y-4">
+<section class="space-y-5 animate-fade-up">
+	<!-- Header + Filters -->
+	<div class="glass-elevated p-5">
+		<div class="flex items-center justify-between">
 			<div>
-				<div class="mb-2 flex items-center justify-between">
-					<span class="text-sm font-medium text-text-1">Secciones</span>
-					<button class="btn-secondary !px-2 !py-1 text-xs" type="button" on:click={clearSectionFilter}>Todas</button>
-				</div>
-				<div class="flex flex-wrap gap-2">
-					{#each sections as sec}
-						<label class="badge cursor-pointer border border-slate-700 bg-slate-900/60 text-text-1">
-							<input
-								type="checkbox"
-								checked={selectedSections.includes(sec.name)}
-								on:change={() => toggleSection(sec.name)}
-							/>
-							{sec.display_name}
-						</label>
-					{/each}
-				</div>
+				<h1 class="text-xl font-semibold tracking-tight" style="color: var(--flux-text);">Feed</h1>
+				<p class="mt-0.5 text-xs" style="color: var(--flux-text-muted);">
+					Todos los artículos ingestados · {articles.length} cargados
+				</p>
 			</div>
-
-			<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-				<div>
-					<label class="mb-1 block text-xs text-text-2" for="source">Fuente</label>
-					<select
-						id="source"
-						class="input w-full"
-						bind:value={sourceRef}
-						on:change={() => void resetAndLoad()}
-					>
-						<option value="">Todas</option>
-						{#each sources.filter((s) => s.enabled) as source}
-							<option value={source.id}>{source.name}</option>
-						{/each}
-					</select>
-				</div>
-
-				<div>
-					<label class="mb-1 block text-xs text-text-2" for="status">Status</label>
-					<select
-						id="status"
-						class="input w-full"
-						bind:value={status}
-						on:change={() => void resetAndLoad()}
-					>
-						<option value="">Todos</option>
-						<option value="pending">pending</option>
-						<option value="processed">processed</option>
-						<option value="briefed">briefed</option>
-						<option value="archived">archived</option>
-					</select>
-				</div>
-
-				<div>
-					<label class="mb-1 block text-xs text-text-2" for="from">Desde</label>
-					<input id="from" class="input w-full" type="date" bind:value={fromDate} on:change={() => void resetAndLoad()} />
-				</div>
-
-				<div>
-					<label class="mb-1 block text-xs text-text-2" for="to">Hasta</label>
-					<input id="to" class="input w-full" type="date" bind:value={toDate} on:change={() => void resetAndLoad()} />
-				</div>
-			</div>
-
-			<label class="inline-flex cursor-pointer items-center gap-2 text-sm text-text-1">
-				<input type="checkbox" bind:checked={likedOnly} on:change={() => void resetAndLoad()} />
-				Solo liked
-			</label>
+			<button
+				class="btn-ghost text-xs"
+				on:click={() => (filtersOpen = !filtersOpen)}
+			>
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+				Filtros
+				{#if activeFilterCount > 0}
+					<span class="ml-1 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold" style="background: var(--flux-accent); color: #020617;">{activeFilterCount}</span>
+				{/if}
+			</button>
 		</div>
+
+		{#if filtersOpen}
+			<div class="mt-4 space-y-4" style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem;">
+				<!-- Sections -->
+				<div>
+					<div class="mb-2 flex items-center justify-between">
+						<span class="text-xs font-medium" style="color: var(--flux-text-soft);">Secciones</span>
+						<button class="text-[11px] transition-colors" style="color: var(--flux-text-muted);" on:click={clearSectionFilter}>Todas</button>
+					</div>
+					<div class="flex flex-wrap gap-1.5">
+						{#each sections as sec}
+							<label class="tab-pill cursor-pointer {selectedSections.includes(sec.name) ? 'active' : ''}">
+								<input
+									type="checkbox"
+									class="sr-only"
+									checked={selectedSections.includes(sec.name)}
+									on:change={() => toggleSection(sec.name)}
+								/>
+								{sec.display_name}
+							</label>
+						{/each}
+					</div>
+				</div>
+
+				<!-- Source / Status / Dates / Liked -->
+				<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+					<div>
+						<label class="mb-1 block text-[11px] font-medium" style="color: var(--flux-text-muted);">Fuente</label>
+						<select class="input w-full" bind:value={sourceRef} on:change={() => void resetAndLoad()}>
+							<option value="">Todas</option>
+							{#each sources as src}
+								<option value={src.id}>{src.name}</option>
+							{/each}
+						</select>
+					</div>
+					<div>
+						<label class="mb-1 block text-[11px] font-medium" style="color: var(--flux-text-muted);">Estado</label>
+						<select class="input w-full" bind:value={status} on:change={() => void resetAndLoad()}>
+							<option value="">Todos</option>
+							<option value="pending">Pending</option>
+							<option value="processed">Processed</option>
+							<option value="briefed">Briefed</option>
+							<option value="archived">Archived</option>
+						</select>
+					</div>
+					<div>
+						<label class="mb-1 block text-[11px] font-medium" style="color: var(--flux-text-muted);">Desde</label>
+						<input type="date" class="input w-full" bind:value={fromDate} on:change={() => void resetAndLoad()} />
+					</div>
+					<div>
+						<label class="mb-1 block text-[11px] font-medium" style="color: var(--flux-text-muted);">Hasta</label>
+						<input type="date" class="input w-full" bind:value={toDate} on:change={() => void resetAndLoad()} />
+					</div>
+				</div>
+
+				<label class="inline-flex cursor-pointer items-center gap-2 text-xs" style="color: var(--flux-text-soft);">
+					<input type="checkbox" bind:checked={likedOnly} on:change={() => void resetAndLoad()} />
+					Solo artículos con like
+				</label>
+			</div>
+		{/if}
 	</div>
 
+	<!-- Error -->
 	{#if error}
-		<div class="surface border-red-500/40 bg-red-500/10 p-3 text-sm text-red-100">{error}</div>
+		<div class="glass-elevated p-4" style="border-color: rgba(248,113,113,0.2); background: rgba(248,113,113,0.05);">
+			<p class="text-sm" style="color: #fca5a5;">{error}</p>
+		</div>
 	{/if}
 
-	<div class="space-y-3">
-		{#if loading}
-			<div class="surface p-4 text-sm text-text-1">Cargando...</div>
-		{:else if articles.length === 0}
-			<div class="surface p-4 text-sm text-text-1">No hay artículos para estos filtros.</div>
-		{:else}
+	<!-- Loading -->
+	{#if loading}
+		<div class="glass-subtle p-6 text-center">
+			<div class="loading-pulse text-sm" style="color: var(--flux-text-muted);">Cargando artículos...</div>
+		</div>
+	{:else if articles.length === 0}
+		<div class="glass-subtle p-8 text-center">
+			<p class="text-sm" style="color: var(--flux-text-muted);">No se encontraron artículos con estos filtros.</p>
+		</div>
+	{:else}
+		<!-- Articles -->
+		<div class="space-y-3">
 			{#each articles as article (article.id)}
 				{@const source = sourceBadge(article.source_type)}
-				<div class="surface p-4">
-					<div class="flex flex-wrap items-center gap-2 text-xs">
+				<div class="glass-elevated p-4 sm:p-5">
+					<!-- Top row -->
+					<div class="flex flex-wrap items-center gap-2">
 						<span class="badge {source.className}">{source.icon} {source.label}</span>
 						<span class="badge {sectionColor(article.section?.name)}">{article.section?.display_name ?? 'Sin sección'}</span>
-						<span class="text-text-2">{formatRelativeTime(article.published_at ?? article.ingested_at)}</span>
-						<span class="text-text-2">{formatDateTime(article.ingested_at)}</span>
+						<span class="text-[11px]" style="color: var(--flux-text-muted);">
+							{formatRelativeTime(article.published_at ?? article.ingested_at)}
+						</span>
+						<span class="hidden text-[11px] sm:inline" style="color: var(--flux-text-muted);">
+							{formatDateTime(article.ingested_at)}
+						</span>
 					</div>
 
-					<h2 class="mt-2 text-base font-semibold">
-						<a href={article.url} target="_blank" rel="noreferrer">{article.title}</a>
+					<!-- Title -->
+					<h2 class="mt-2.5 text-[15px] font-semibold leading-snug" style="color: var(--flux-text);">
+						<a href={article.url} target="_blank" rel="noreferrer" class="hover:underline decoration-cyan-400/40 underline-offset-2">{article.title}</a>
 					</h2>
 
+					<!-- Summary -->
 					{#if article.summary}
-						<p class="mt-2 text-sm text-text-1">{article.summary}</p>
+						<p class="mt-2 text-sm leading-relaxed" style="color: var(--flux-text-soft);">{article.summary}</p>
 					{/if}
 
+					<!-- Relevance bar -->
 					<div class="mt-3">
-						<div class="mb-1 flex items-center justify-between text-xs text-text-2">
-							<span>Relevance score</span>
-							<span class="font-mono">{article.relevance_score?.toFixed(3) ?? 'N/A'}</span>
+						<div class="mb-1 flex items-center justify-between text-[11px]" style="color: var(--flux-text-muted);">
+							<span>Relevance</span>
+							<span class="font-mono">{article.relevance_score?.toFixed(3) ?? '—'}</span>
 						</div>
-						<div class="h-2 w-full rounded-full bg-slate-800">
-							<div class="h-2 rounded-full bg-orange-400" style={`width: ${relevanceWidth(article.relevance_score)}`}></div>
+						<div class="relevance-track">
+							<div class="relevance-fill" style="width: {relevanceWidth(article.relevance_score)}"></div>
 						</div>
 					</div>
 
-					<div class="mt-3 flex flex-wrap gap-2">
+					<!-- Feedback -->
+					<div class="mt-3.5 flex flex-wrap gap-2">
 						<button
 							type="button"
-							class="btn-secondary !py-1.5 !text-xs {article.feedback.liked ? '!border-emerald-400 !text-emerald-200' : ''}"
+							class="feedback-btn {article.feedback.liked ? 'liked' : ''}"
 							on:click={() => onFeedback(article, 'like')}
 						>
-							👍 Like ({article.feedback.likes})
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+							{article.feedback.likes}
 						</button>
 						<button
 							type="button"
-							class="btn-secondary !py-1.5 !text-xs {article.feedback.disliked ? '!border-red-400 !text-red-200' : ''}"
+							class="feedback-btn {article.feedback.disliked ? 'disliked' : ''}"
 							on:click={() => onFeedback(article, 'dislike')}
 						>
-							👎 Dislike ({article.feedback.dislikes})
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/></svg>
+							{article.feedback.dislikes}
 						</button>
 						<button
 							type="button"
-							class="btn-secondary !py-1.5 !text-xs {article.feedback.saved ? '!border-indigo-400 !text-indigo-200' : ''}"
+							class="feedback-btn {article.feedback.saved ? 'saved' : ''}"
 							on:click={() => onFeedback(article, 'save')}
 						>
-							🔖 Guardar ({article.feedback.saves})
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="{article.feedback.saved ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+							{article.feedback.saves}
 						</button>
 					</div>
 				</div>
 			{/each}
-		{/if}
-	</div>
+		</div>
+	{/if}
 
+	<!-- Infinite scroll sentinel -->
 	<div bind:this={sentinel} class="h-6"></div>
 	{#if loadingMore}
-		<div class="text-center text-sm text-text-2">Cargando más...</div>
+		<div class="py-4 text-center">
+			<span class="loading-pulse text-xs" style="color: var(--flux-text-muted);">Cargando más...</span>
+		</div>
 	{:else if !hasMore && articles.length > 0}
-		<div class="text-center text-sm text-text-2">Fin del feed.</div>
+		<div class="py-4 text-center text-xs" style="color: var(--flux-text-muted);">
+			Fin del feed · {articles.length} artículos
+		</div>
 	{/if}
 </section>

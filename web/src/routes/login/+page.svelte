@@ -1,60 +1,60 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
-	import { apiFetch, getAuthToken, setAuthToken } from '$lib/api';
+	import { setAuthToken } from '$lib/api';
 
 	let token = '';
-	let loading = false;
 	let error = '';
 
-	onMount(() => {
-		token = getAuthToken();
-	});
-
-	async function submit() {
-		loading = true;
+	async function login() {
 		error = '';
 		setAuthToken(token);
-		try {
-			const response = await apiFetch('/briefings/latest');
-			if (!response.ok && response.status !== 404) {
-				throw new Error((await response.text()) || `HTTP ${response.status}`);
-			}
-			await goto('/');
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'No se pudo validar el token';
-		} finally {
-			loading = false;
-		}
+		await goto('/');
 	}
 
-	async function continueWithoutToken() {
-		token = '';
-		await submit();
+	function onKeyDown(event: KeyboardEvent) {
+		if (event.key === 'Enter') {
+			void login();
+		}
 	}
 </script>
 
-<div class="mx-auto mt-10 w-full max-w-md surface p-5">
-	<h1 class="text-xl font-semibold">Acceso a Flux</h1>
-	<p class="mt-2 text-sm text-text-2">
-		Introduce tu token (`AUTH_TOKEN`) o continúa sin token si la autenticación la hace Traefik/Caddy.
-	</p>
-
-	<form class="mt-4 space-y-3" on:submit|preventDefault={submit}>
-		<label class="block text-sm font-medium text-text-1" for="token">Token</label>
-		<input id="token" class="input w-full font-mono" bind:value={token} placeholder="tu-token" autocomplete="off" />
+<div class="flex min-h-[60vh] items-center justify-center">
+	<div class="glass-elevated w-full max-w-sm p-8 animate-fade-up">
+		<!-- Logo -->
+		<div class="mb-6 text-center">
+			<div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl" style="background: linear-gradient(135deg, #06b6d4, #0891b2); box-shadow: 0 4px 20px -4px rgba(6,182,212,0.4);">
+				<span class="font-mono text-lg font-bold text-slate-950">F</span>
+			</div>
+			<h1 class="mt-4 text-lg font-semibold" style="color: var(--flux-text);">Flux</h1>
+			<p class="mt-1 text-xs" style="color: var(--flux-text-muted);">Introduce tu token para acceder</p>
+		</div>
 
 		{#if error}
-			<div class="rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">{error}</div>
+			<div class="mb-4 rounded-xl p-3 text-center text-sm" style="background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.2); color: #fca5a5;">
+				{error}
+			</div>
 		{/if}
 
-		<div class="flex gap-2">
-			<button class="btn-primary flex-1" type="submit" disabled={loading}>
-				{#if loading}Validando...{:else}Entrar{/if}
-			</button>
-			<button class="btn-secondary" type="button" disabled={loading} on:click={continueWithoutToken}>
-				Sin token
+		<div class="space-y-4">
+			<input
+				class="input w-full text-center font-mono tracking-wider"
+				type="password"
+				placeholder="Token"
+				bind:value={token}
+				on:keydown={onKeyDown}
+				autocomplete="current-password"
+			/>
+
+			<button
+				class="btn-primary w-full"
+				on:click={login}
+			>
+				Acceder
 			</button>
 		</div>
-	</form>
+
+		<p class="mt-5 text-center text-[11px]" style="color: var(--flux-text-muted);">
+			Deja vacío si usas auth por reverse-proxy.
+		</p>
+	</div>
 </div>

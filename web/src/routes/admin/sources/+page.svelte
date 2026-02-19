@@ -47,6 +47,7 @@
 				body: JSON.stringify({ enabled: !source.enabled })
 			});
 			source.enabled = !source.enabled;
+			sources = sources;
 		} catch (err) {
 			await handleError(err);
 		}
@@ -100,6 +101,7 @@
 				body: JSON.stringify({ enabled: !section.enabled })
 			});
 			section.enabled = !section.enabled;
+			sections = sections;
 		} catch (err) {
 			await handleError(err);
 		}
@@ -151,9 +153,7 @@
 	}
 
 	async function onDrop(targetSectionID: string) {
-		if (!draggedSectionId || draggedSectionId === targetSectionID) {
-			return;
-		}
+		if (!draggedSectionId || draggedSectionId === targetSectionID) return;
 
 		const next = [...sections];
 		const from = next.findIndex((s) => s.id === draggedSectionId);
@@ -181,14 +181,10 @@
 		}
 	}
 
-	function sourceState(source: Source): { icon: string; className: string } {
-		if (!source.enabled) {
-			return { icon: '●', className: 'text-red-400' };
-		}
-		if (source.error_count > 0) {
-			return { icon: '●', className: 'text-amber-400' };
-		}
-		return { icon: '●', className: 'text-emerald-400' };
+	function sourceState(source: Source): { dot: string } {
+		if (!source.enabled) return { dot: 'error' };
+		if (source.error_count > 0) return { dot: 'warning' };
+		return { dot: 'ok' };
 	}
 
 	async function handleError(err: unknown) {
@@ -201,80 +197,113 @@
 	}
 </script>
 
-<section class="space-y-4">
-	<div class="surface p-4">
-		<h1 class="text-xl font-semibold">Admin · Fuentes y Secciones</h1>
-		<p class="mt-1 text-sm text-text-2">Configura fuentes RSS/HN/Reddit, secciones del briefing y orden de aparición.</p>
+<section class="space-y-5 animate-fade-up">
+	<!-- Header -->
+	<div class="glass-elevated p-5">
+		<h1 class="text-xl font-semibold tracking-tight" style="color: var(--flux-text);">Admin</h1>
+		<p class="mt-0.5 text-xs" style="color: var(--flux-text-muted);">Fuentes, secciones y configuración del briefing.</p>
 	</div>
 
+	<!-- Error -->
 	{#if error}
-		<div class="surface border-red-500/40 bg-red-500/10 p-3 text-sm text-red-100">{error}</div>
+		<div class="glass-elevated p-4" style="border-color: rgba(248,113,113,0.2); background: rgba(248,113,113,0.05);">
+			<p class="text-sm" style="color: #fca5a5;">{error}</p>
+		</div>
 	{/if}
 
-	<div class="surface overflow-x-auto p-4">
-		<h2 class="mb-3 text-lg font-semibold">Fuentes</h2>
+	<!-- Sources table -->
+	<div class="glass-elevated overflow-hidden">
+		<div class="flex items-center justify-between p-5 pb-3">
+			<h2 class="text-base font-semibold" style="color: var(--flux-text);">Fuentes</h2>
+			<span class="text-[11px] font-mono" style="color: var(--flux-text-muted);">{sources.length} configuradas</span>
+		</div>
+
 		{#if loading}
-			<div class="text-sm text-text-2">Cargando fuentes...</div>
+			<div class="p-5 text-center">
+				<span class="loading-pulse text-sm" style="color: var(--flux-text-muted);">Cargando fuentes...</span>
+			</div>
 		{:else}
-			<table class="min-w-full text-left text-sm">
-				<thead class="text-text-2">
-					<tr>
-						<th class="pb-2">Estado</th>
-						<th class="pb-2">Nombre</th>
-						<th class="pb-2">Tipo</th>
-						<th class="pb-2">Secciones</th>
-						<th class="pb-2">Último fetch</th>
-						<th class="pb-2">Errores</th>
-						<th class="pb-2">Stats</th>
-						<th class="pb-2">Acción</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each sources as source (source.id)}
-						{@const state = sourceState(source)}
-						<tr class="border-t border-slate-800 align-top">
-							<td class="py-2"><span class={state.className}>{state.icon}</span></td>
-							<td class="py-2">
-								<div class="font-medium">{source.name}</div>
-								{#if source.last_error}
-									<div class="max-w-xs truncate text-xs text-text-2" title={source.last_error}>{source.last_error}</div>
-								{/if}
-							</td>
-							<td class="py-2 uppercase text-text-1">{source.source_type}</td>
-							<td class="py-2 text-text-1">{source.sections.map((s) => s.display_name).join(', ') || '—'}</td>
-							<td class="py-2 text-text-1">{formatRelativeTime(source.last_fetched_at)}</td>
-							<td class="py-2 text-text-1">{source.error_count}</td>
-							<td class="py-2 text-xs text-text-1">
-								<div>Total: {source.stats.total_ingested}</div>
-								<div>24h: {source.stats.last_24h}</div>
-								<div>% filtro: {source.stats.pass_rate_pct.toFixed(2)}%</div>
-							</td>
-							<td class="py-2">
-								<button class="btn-secondary !py-1.5 !text-xs" on:click={() => toggleSource(source)}>
-									{source.enabled ? 'Deshabilitar' : 'Habilitar'}
-								</button>
-							</td>
+			<div class="overflow-x-auto">
+				<table class="glass-table">
+					<thead>
+						<tr>
+							<th class="w-8"></th>
+							<th>Nombre</th>
+							<th>Tipo</th>
+							<th class="hidden sm:table-cell">Secciones</th>
+							<th class="hidden md:table-cell">Último fetch</th>
+							<th class="hidden lg:table-cell">Stats</th>
+							<th class="text-right">Acción</th>
 						</tr>
-					{/each}
-				</tbody>
-			</table>
+					</thead>
+					<tbody>
+						{#each sources as source (source.id)}
+							{@const state = sourceState(source)}
+							<tr>
+								<td><span class="status-dot {state.dot}"></span></td>
+								<td>
+									<div class="font-medium" style="color: var(--flux-text);">{source.name}</div>
+									{#if source.last_error}
+										<div class="mt-0.5 max-w-[200px] truncate text-[11px]" style="color: var(--flux-text-muted);" title={source.last_error}>
+											{source.last_error}
+										</div>
+									{/if}
+								</td>
+								<td>
+									<span class="badge" style="background: rgba(255,255,255,0.03);">{source.source_type.toUpperCase()}</span>
+								</td>
+								<td class="hidden sm:table-cell">
+									<span class="text-xs" style="color: var(--flux-text-soft);">
+										{source.sections.map((s) => s.display_name).join(', ') || '—'}
+									</span>
+								</td>
+								<td class="hidden md:table-cell">
+									<span class="text-xs" style="color: var(--flux-text-muted);">
+										{formatRelativeTime(source.last_fetched_at)}
+									</span>
+								</td>
+								<td class="hidden lg:table-cell">
+									<div class="text-[11px] leading-tight" style="color: var(--flux-text-muted);">
+										<span>Total: {source.stats.total_ingested}</span>
+										<span class="mx-1">·</span>
+										<span>24h: {source.stats.last_24h}</span>
+										<span class="mx-1">·</span>
+										<span>{source.stats.pass_rate_pct.toFixed(1)}%</span>
+									</div>
+								</td>
+								<td class="text-right">
+									<button
+										class="btn-ghost text-[11px] !px-2.5 !py-1"
+										on:click={() => toggleSource(source)}
+									>
+										{source.enabled ? 'Deshabilitar' : 'Habilitar'}
+									</button>
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
 		{/if}
 	</div>
 
-	<div class="grid gap-4 lg:grid-cols-2">
-		<div class="surface p-4">
-			<h2 class="text-lg font-semibold">Añadir Fuente RSS</h2>
-			<div class="mt-3 space-y-3">
+	<!-- Create section: 2-col grid -->
+	<div class="grid gap-5 lg:grid-cols-2">
+		<!-- Add source -->
+		<div class="glass-elevated p-5">
+			<h2 class="text-base font-semibold" style="color: var(--flux-text);">Añadir Fuente RSS</h2>
+			<div class="mt-4 space-y-3">
 				<input class="input w-full" placeholder="Nombre" bind:value={newSourceName} />
 				<input class="input w-full" placeholder="URL RSS" bind:value={newSourceURL} />
 
 				<div>
-					<div class="mb-1 text-sm text-text-2">Secciones</div>
-					<div class="flex flex-wrap gap-2">
+					<div class="mb-1.5 text-[11px] font-medium" style="color: var(--flux-text-muted);">Secciones</div>
+					<div class="flex flex-wrap gap-1.5">
 						{#each sections as section}
-							<label class="badge cursor-pointer border border-slate-700 bg-slate-900/60 text-text-1">
+							<label class="tab-pill cursor-pointer {newSourceSectionIDs.includes(section.id) ? 'active' : ''}">
 								<input
 									type="checkbox"
+									class="sr-only"
 									checked={newSourceSectionIDs.includes(section.id)}
 									on:change={() => toggleNewSourceSection(section.id)}
 								/>
@@ -284,15 +313,16 @@
 					</div>
 				</div>
 
-				<button class="btn-primary" disabled={saving} on:click={createSource}>
-					{saving ? 'Guardando...' : 'Añadir fuente'}
+				<button class="btn-primary w-full" disabled={saving} on:click={createSource}>
+					{saving ? 'Validando...' : 'Añadir fuente'}
 				</button>
 			</div>
 		</div>
 
-		<div class="surface p-4">
-			<h2 class="text-lg font-semibold">Crear Sección</h2>
-			<div class="mt-3 space-y-3">
+		<!-- Create section -->
+		<div class="glass-elevated p-5">
+			<h2 class="text-base font-semibold" style="color: var(--flux-text);">Crear Sección</h2>
+			<div class="mt-4 space-y-3">
 				<input class="input w-full" placeholder="name (slug)" bind:value={newSectionName} />
 				<input class="input w-full" placeholder="display_name (ej: 🧪 AI)" bind:value={newSectionDisplayName} />
 				<textarea
@@ -301,19 +331,20 @@
 					placeholder="seed keywords separadas por coma"
 					bind:value={newSectionKeywords}
 				></textarea>
-				<button class="btn-primary" on:click={createSection}>Crear sección</button>
+				<button class="btn-primary w-full" on:click={createSection}>Crear sección</button>
 			</div>
 		</div>
 	</div>
 
-	<div class="surface p-4">
-		<h2 class="text-lg font-semibold">Gestión de Secciones</h2>
-		<p class="mt-1 text-sm text-text-2">Arrastra para reordenar, activa/desactiva y ajusta `max_briefing_articles`.</p>
+	<!-- Section management -->
+	<div class="glass-elevated p-5">
+		<h2 class="text-base font-semibold" style="color: var(--flux-text);">Gestión de Secciones</h2>
+		<p class="mt-0.5 text-xs" style="color: var(--flux-text-muted);">Arrastra para reordenar · activa/desactiva · ajusta máx. artículos por briefing.</p>
 
-		<div class="mt-3 space-y-2">
+		<div class="mt-4 space-y-2">
 			{#each sections as section (section.id)}
 				<div
-					class="rounded-lg border border-slate-700 bg-slate-900/60 p-3"
+					class="glass-subtle draggable-section rounded-xl p-3.5 transition-all duration-200"
 					draggable="true"
 					role="listitem"
 					on:dragstart={() => onDragStart(section.id)}
@@ -321,26 +352,34 @@
 					on:drop={() => onDrop(section.id)}
 				>
 					<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-						<div>
-							<div class="font-medium">{section.display_name}</div>
-							<div class="text-xs text-text-2">name: {section.name} · orden: {section.sort_order}</div>
+						<div class="flex items-center gap-3">
+							<!-- Drag handle icon -->
+							<span class="text-sm" style="color: var(--flux-text-muted); cursor: grab;">⠿</span>
+							<div>
+								<div class="text-sm font-medium" style="color: var(--flux-text);">{section.display_name}</div>
+								<div class="text-[11px]" style="color: var(--flux-text-muted);">
+									{section.name} · orden: {section.sort_order}
+								</div>
+							</div>
 						</div>
 
-						<div class="flex flex-wrap items-center gap-2">
-							<label class="inline-flex items-center gap-2 text-xs text-text-1">
+						<div class="flex flex-wrap items-center gap-2.5">
+							<label class="inline-flex cursor-pointer items-center gap-1.5 text-xs" style="color: var(--flux-text-soft);">
 								<input type="checkbox" checked={section.enabled} on:change={() => toggleSectionEnabled(section)} />
-								enabled
+								Activa
 							</label>
 
-							<input
-								type="number"
-								class="input !w-24"
-								min="1"
-								bind:value={section.max_briefing_articles}
-							/>
-							<button class="btn-secondary !py-1.5 !text-xs" on:click={() => saveSectionMax(section)}>
-								Guardar max
-							</button>
+							<div class="flex items-center gap-1.5">
+								<input
+									type="number"
+									class="input !w-16 text-center !px-2 !py-1.5 text-xs"
+									min="1"
+									bind:value={section.max_briefing_articles}
+								/>
+								<button class="btn-ghost text-[11px] !px-2 !py-1" on:click={() => saveSectionMax(section)}>
+									Guardar
+								</button>
+							</div>
 						</div>
 					</div>
 				</div>

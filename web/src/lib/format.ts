@@ -46,30 +46,30 @@ export function formatDateTime(input?: string): string {
 
 export function sectionColor(sectionName?: string): string {
 	switch ((sectionName ?? '').toLowerCase()) {
-	case 'cybersecurity':
-		return 'bg-red-500/20 text-red-200 border border-red-400/40';
-	case 'tech':
-		return 'bg-cyan-500/20 text-cyan-200 border border-cyan-400/40';
-	case 'economy':
-		return 'bg-emerald-500/20 text-emerald-200 border border-emerald-400/40';
-	case 'world':
-		return 'bg-indigo-500/20 text-indigo-200 border border-indigo-400/40';
-	default:
-		return 'bg-slate-700/70 text-slate-100 border border-slate-500';
+		case 'cybersecurity':
+			return 'bg-red-500/10 text-red-300 border border-red-500/20';
+		case 'tech':
+			return 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/20';
+		case 'economy':
+			return 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20';
+		case 'world':
+			return 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/20';
+		default:
+			return 'bg-white/5 text-slate-300 border border-white/10';
 	}
 }
 
 export function sourceBadge(sourceType: string): { icon: string; label: string; className: string } {
 	switch (sourceType) {
-	case 'hn':
-		return { icon: '🟧', label: 'HN', className: 'bg-orange-500/20 text-orange-100 border border-orange-400/40' };
-	case 'reddit':
-		return { icon: '🔵', label: 'Reddit', className: 'bg-blue-500/20 text-blue-100 border border-blue-400/40' };
-	case 'github':
-		return { icon: '🐙', label: 'GitHub', className: 'bg-slate-500/20 text-slate-100 border border-slate-400/40' };
-	case 'rss':
-	default:
-		return { icon: '🟠', label: 'RSS', className: 'bg-amber-500/20 text-amber-100 border border-amber-400/40' };
+		case 'hn':
+			return { icon: '◧', label: 'HN', className: 'bg-orange-500/10 text-orange-300 border border-orange-500/20' };
+		case 'reddit':
+			return { icon: '◉', label: 'Reddit', className: 'bg-blue-500/10 text-blue-300 border border-blue-500/20' };
+		case 'github':
+			return { icon: '◈', label: 'GitHub', className: 'bg-purple-500/10 text-purple-300 border border-purple-500/20' };
+		case 'rss':
+		default:
+			return { icon: '◆', label: 'RSS', className: 'bg-amber-500/10 text-amber-300 border border-amber-500/20' };
 	}
 }
 

@@ -1,56 +1,419 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ─────────────────────────────────────
+   DESIGN SYSTEM — FLUX GLASS
+   Crystal / frosted-glass dark theme
+   ───────────────────────────────────── */
+
 :root {
 	color-scheme: dark;
-	--flux-bg: #0b0f14;
-	--flux-bg-soft: #111827;
-	--flux-bg-panel: #1f2937;
-	--flux-text: #f3f4f6;
-	--flux-muted: #9ca3af;
-	--flux-accent: #f97316;
+
+	/* Core palette */
+	--flux-bg:         #06080c;
+	--flux-bg-soft:    #0c1018;
+	--flux-bg-panel:   rgba(15, 20, 32, 0.55);
+	--flux-glass:      rgba(255, 255, 255, 0.03);
+	--flux-glass-edge: rgba(255, 255, 255, 0.08);
+	--flux-glass-hover:rgba(255, 255, 255, 0.06);
+
+	/* Text hierarchy */
+	--flux-text:       #e8ecf4;
+	--flux-text-soft:  #a0aec0;
+	--flux-text-muted: #5a6a80;
+
+	/* Accent: cool cyan → teal */
+	--flux-accent:     #06b6d4;
+	--flux-accent-dim: rgba(6, 182, 212, 0.15);
+	--flux-accent-glow:rgba(6, 182, 212, 0.25);
+
+	/* Semantic */
+	--flux-success:    #34d399;
+	--flux-warning:    #fbbf24;
+	--flux-danger:     #f87171;
+	--flux-info:       #60a5fa;
 }
+
+/* ── Base reset ─────────────────────── */
 
 html,
 body {
-	@apply min-h-full bg-bg-0 text-text-0 antialiased;
+	@apply min-h-full antialiased;
+	background: var(--flux-bg);
+	color: var(--flux-text);
+	font-feature-settings: 'cv01', 'cv02', 'ss01';
+}
+
+body {
 	background-image:
-		radial-gradient(circle at 15% 15%, rgba(249, 115, 22, 0.18), transparent 35%),
-		radial-gradient(circle at 85% 0%, rgba(59, 130, 246, 0.15), transparent 30%);
+		radial-gradient(ellipse 80% 60% at 10% 0%,  rgba(6, 182, 212, 0.07), transparent),
+		radial-gradient(ellipse 60% 50% at 90% 10%, rgba(99, 102, 241, 0.05), transparent),
+		radial-gradient(ellipse 50% 40% at 50% 100%, rgba(6, 182, 212, 0.03), transparent);
 	background-attachment: fixed;
 }
 
+/* ── Selection ──────────────────────── */
+::selection {
+	background: rgba(6, 182, 212, 0.3);
+	color: #fff;
+}
+
+/* ── Scrollbar ──────────────────────── */
+::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+	background: rgba(255, 255, 255, 0.08);
+	border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: rgba(255, 255, 255, 0.14);
+}
+
+/* ── Links ──────────────────────────── */
 a {
-	@apply text-orange-300 hover:text-orange-200;
+	@apply transition-colors duration-200;
+	color: var(--flux-accent);
 }
 
-.surface {
-	@apply rounded-xl border border-slate-800 bg-bg-1/80 shadow-lg shadow-black/30 backdrop-blur;
+a:hover {
+	color: #22d3ee;
 }
 
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   COMPONENT CLASSES
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/* ── Glass Surface ──────────────────── */
+.glass {
+	background: var(--flux-glass);
+	border: 1px solid var(--flux-glass-edge);
+	border-radius: 16px;
+	backdrop-filter: blur(20px) saturate(1.2);
+	-webkit-backdrop-filter: blur(20px) saturate(1.2);
+	box-shadow:
+		0 0 0 1px rgba(255, 255, 255, 0.02) inset,
+		0 8px 32px -8px rgba(0, 0, 0, 0.5);
+	transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.glass:hover {
+	border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Elevated glass (cards, modals) */
+.glass-elevated {
+	background: rgba(15, 20, 32, 0.6);
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	border-radius: 16px;
+	backdrop-filter: blur(24px) saturate(1.3);
+	-webkit-backdrop-filter: blur(24px) saturate(1.3);
+	box-shadow:
+		0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+		0 1px 0 0 rgba(255, 255, 255, 0.04) inset,
+		0 16px 48px -12px rgba(0, 0, 0, 0.6);
+}
+
+/* Subtle glass (nested elements) */
+.glass-subtle {
+	background: rgba(255, 255, 255, 0.02);
+	border: 1px solid rgba(255, 255, 255, 0.05);
+	border-radius: 12px;
+	backdrop-filter: blur(8px);
+	-webkit-backdrop-filter: blur(8px);
+}
+
+/* ── Badge ──────────────────────────── */
 .badge {
-	@apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold;
+	@apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium tracking-wide uppercase;
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	letter-spacing: 0.04em;
 }
 
+/* ── Input ──────────────────────────── */
 .input {
-	@apply rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-sm text-text-0 placeholder:text-text-2 focus:border-orange-400 focus:outline-none;
+	@apply rounded-xl px-3.5 py-2.5 text-sm transition-all duration-200;
+	background: rgba(255, 255, 255, 0.03);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	color: var(--flux-text);
 }
 
+.input::placeholder {
+	color: var(--flux-text-muted);
+}
+
+.input:focus {
+	outline: none;
+	border-color: var(--flux-accent);
+	box-shadow: 0 0 0 3px var(--flux-accent-dim), 0 0 20px -4px var(--flux-accent-dim);
+}
+
+/* ── Buttons ────────────────────────── */
 .btn {
-	@apply inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium transition;
+	@apply inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200;
+	cursor: pointer;
+	user-select: none;
+}
+
+.btn:active {
+	transform: scale(0.97);
 }
 
 .btn-primary {
-	@apply btn bg-orange-500 text-slate-950 hover:bg-orange-400;
+	@apply btn;
+	background: linear-gradient(135deg, #06b6d4, #0891b2);
+	color: #020617;
+	border: 1px solid transparent;
+	box-shadow: 0 2px 12px -2px rgba(6, 182, 212, 0.4);
 }
 
-.btn-secondary {
-	@apply btn border border-slate-700 bg-slate-900/60 text-text-1 hover:border-slate-500 hover:text-text-0;
+.btn-primary:hover {
+	background: linear-gradient(135deg, #22d3ee, #06b6d4);
+	box-shadow: 0 4px 20px -2px rgba(6, 182, 212, 0.5);
 }
 
+.btn-primary:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+	transform: none;
+}
+
+.btn-ghost {
+	@apply btn;
+	background: rgba(255, 255, 255, 0.03);
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	color: var(--flux-text-soft);
+}
+
+.btn-ghost:hover {
+	background: rgba(255, 255, 255, 0.06);
+	border-color: rgba(255, 255, 255, 0.12);
+	color: var(--flux-text);
+}
+
+.btn-ghost.active {
+	background: var(--flux-accent-dim);
+	border-color: rgba(6, 182, 212, 0.3);
+	color: #22d3ee;
+	box-shadow: 0 0 16px -4px var(--flux-accent-dim);
+}
+
+/* ── Feedback Buttons (Like/Dislike/Save) */
+.feedback-btn {
+	@apply inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-200;
+	background: rgba(255, 255, 255, 0.03);
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	color: var(--flux-text-muted);
+	cursor: pointer;
+}
+
+.feedback-btn:hover {
+	background: rgba(255, 255, 255, 0.06);
+	color: var(--flux-text-soft);
+	border-color: rgba(255, 255, 255, 0.1);
+}
+
+.feedback-btn:active {
+	transform: scale(0.95);
+}
+
+.feedback-btn.liked {
+	background: rgba(52, 211, 153, 0.12);
+	border-color: rgba(52, 211, 153, 0.3);
+	color: #6ee7b7;
+	box-shadow: 0 0 12px -4px rgba(52, 211, 153, 0.3);
+}
+
+.feedback-btn.disliked {
+	background: rgba(248, 113, 113, 0.12);
+	border-color: rgba(248, 113, 113, 0.3);
+	color: #fca5a5;
+	box-shadow: 0 0 12px -4px rgba(248, 113, 113, 0.3);
+}
+
+.feedback-btn.saved {
+	background: rgba(129, 140, 248, 0.12);
+	border-color: rgba(129, 140, 248, 0.3);
+	color: #a5b4fc;
+	box-shadow: 0 0 12px -4px rgba(129, 140, 248, 0.3);
+}
+
+/* ── Section Tab Pills ──────────────── */
+.tab-pill {
+	@apply inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-medium transition-all duration-200 whitespace-nowrap;
+	background: rgba(255, 255, 255, 0.03);
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	color: var(--flux-text-muted);
+	cursor: pointer;
+}
+
+.tab-pill:hover {
+	background: rgba(255, 255, 255, 0.06);
+	color: var(--flux-text-soft);
+}
+
+.tab-pill.active {
+	background: var(--flux-accent-dim);
+	border-color: rgba(6, 182, 212, 0.35);
+	color: #22d3ee;
+	box-shadow: 0 0 20px -6px var(--flux-accent-dim);
+}
+
+/* ── Status Dot ─────────────────────── */
+.status-dot {
+	@apply inline-block h-2 w-2 rounded-full;
+}
+
+.status-dot.ok      { background: var(--flux-success); box-shadow: 0 0 6px rgba(52, 211, 153, 0.4); }
+.status-dot.warning  { background: var(--flux-warning); box-shadow: 0 0 6px rgba(251, 191, 36, 0.4); }
+.status-dot.error    { background: var(--flux-danger);  box-shadow: 0 0 6px rgba(248, 113, 113, 0.4); }
+
+/* ── Relevance Bar ──────────────────── */
+.relevance-track {
+	@apply h-1 w-full rounded-full overflow-hidden;
+	background: rgba(255, 255, 255, 0.04);
+}
+
+.relevance-fill {
+	@apply h-full rounded-full transition-all duration-500;
+	background: linear-gradient(90deg, var(--flux-accent), #22d3ee);
+}
+
+/* ── Prose (Markdown) ───────────────── */
+.prose-flux {
+	@apply text-sm leading-relaxed;
+	color: var(--flux-text-soft);
+}
+
+.prose-flux h1,
+.prose-flux h2,
+.prose-flux h3 {
+	color: var(--flux-text);
+	font-weight: 600;
+	margin-top: 1.5em;
+	margin-bottom: 0.5em;
+}
+
+.prose-flux h1 { @apply text-lg; }
+.prose-flux h2 { @apply text-base; }
+.prose-flux h3 { @apply text-sm; }
+
+.prose-flux p {
+	margin-bottom: 0.8em;
+}
+
+.prose-flux a {
+	color: var(--flux-accent);
+	text-decoration: none;
+}
+
+.prose-flux a:hover {
+	text-decoration: underline;
+}
+
+.prose-flux ul,
+.prose-flux ol {
+	@apply pl-5 mb-3;
+}
+
+.prose-flux li {
+	margin-bottom: 0.3em;
+}
+
+.prose-flux code {
+	@apply rounded px-1.5 py-0.5 text-xs font-mono;
+	background: rgba(255, 255, 255, 0.06);
+	color: #22d3ee;
+}
+
+.prose-flux pre {
+	@apply rounded-xl p-4 mb-4 overflow-x-auto text-xs;
+	background: rgba(0, 0, 0, 0.3);
+	border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.prose-flux pre code {
+	background: none;
+	padding: 0;
+}
+
+.prose-flux blockquote {
+	@apply pl-4 italic;
+	border-left: 2px solid var(--flux-accent);
+	color: var(--flux-text-muted);
+}
+
+.prose-flux hr {
+	border: none;
+	border-top: 1px solid rgba(255, 255, 255, 0.06);
+	margin: 1.5em 0;
+}
+
+/* ── Table ──────────────────────────── */
+.glass-table {
+	@apply w-full text-left text-sm;
+	border-collapse: separate;
+	border-spacing: 0;
+}
+
+.glass-table thead th {
+	@apply py-3 px-4 text-[11px] font-semibold uppercase tracking-wider;
+	color: var(--flux-text-muted);
+	border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.glass-table tbody td {
+	@apply py-3 px-4;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+	color: var(--flux-text-soft);
+}
+
+.glass-table tbody tr {
+	transition: background 0.15s ease;
+}
+
+.glass-table tbody tr:hover {
+	background: rgba(255, 255, 255, 0.02);
+}
+
+/* ── Loading pulse ──────────────────── */
+@keyframes glass-pulse {
+	0%, 100% { opacity: 0.4; }
+	50%      { opacity: 1; }
+}
+
+.loading-pulse {
+	animation: glass-pulse 1.8s ease-in-out infinite;
+}
+
+/* ── Stagger animation ──────────────── */
+@keyframes fade-up {
+	from {
+		opacity: 0;
+		transform: translateY(12px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.animate-fade-up {
+	animation: fade-up 0.4s ease-out both;
+}
+
+/* ── No scrollbar utility ───────────── */
 .no-scrollbar::-webkit-scrollbar {
 	display: none;
 }
@@ -58,4 +421,25 @@ a {
 .no-scrollbar {
 	-ms-overflow-style: none;
 	scrollbar-width: none;
+}
+
+/* ── Checkbox styling ───────────────── */
+input[type='checkbox'] {
+	@apply h-3.5 w-3.5 rounded;
+	accent-color: var(--flux-accent);
+}
+
+/* ── Drag handle visual ─────────────── */
+.draggable-section {
+	cursor: grab;
+}
+
+.draggable-section:active {
+	cursor: grabbing;
+}
+
+/* ── Glow ring (for interactive focus) ─ */
+.glow-ring:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 2px var(--flux-bg), 0 0 0 4px var(--flux-accent);
 }
