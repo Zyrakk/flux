@@ -44,32 +44,79 @@ export function formatDateTime(input?: string): string {
 	});
 }
 
+function normalizeSectionName(sectionName?: string): string {
+	const name = (sectionName ?? '').toLowerCase();
+	if (name.includes('cyber')) return 'cybersecurity';
+	if (name.includes('tech')) return 'tech';
+	if (name.includes('econ')) return 'economy';
+	if (name.includes('world') || name.includes('geo')) return 'world';
+	return name;
+}
+
 export function sectionColor(sectionName?: string): string {
-	switch ((sectionName ?? '').toLowerCase()) {
+	switch (normalizeSectionName(sectionName)) {
 		case 'cybersecurity':
-			return 'bg-red-500/10 text-red-300 border border-red-500/20';
+			return '#06b6d4';
 		case 'tech':
-			return 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/20';
+			return '#a78bfa';
 		case 'economy':
-			return 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20';
+			return '#fbbf24';
 		case 'world':
-			return 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/20';
+			return '#34d399';
 		default:
-			return 'bg-white/5 text-slate-300 border border-white/10';
+			return '#06b6d4';
 	}
 }
 
+export function sectionTint(sectionName?: string): string {
+	switch (normalizeSectionName(sectionName)) {
+		case 'cybersecurity':
+			return '6,182,212';
+		case 'tech':
+			return '167,139,250';
+		case 'economy':
+			return '251,191,36';
+		case 'world':
+			return '52,211,153';
+		default:
+			return '6,182,212';
+	}
+}
+
+export function priorityColor(priority?: string): string {
+	switch ((priority ?? '').toUpperCase()) {
+		case 'CRITICAL':
+			return '#ef4444';
+		case 'HIGH':
+			return '#fbbf24';
+		case 'MEDIUM':
+			return '#06b6d4';
+		case 'LOW':
+			return '#94a3b8';
+		default:
+			return '#06b6d4';
+	}
+}
+
+export function priorityLabel(score?: number): string {
+	if (score == null || Number.isNaN(score)) return 'MEDIUM';
+	if (score >= 0.85) return 'CRITICAL';
+	if (score >= 0.65) return 'HIGH';
+	if (score >= 0.35) return 'MEDIUM';
+	return 'LOW';
+}
+
 export function sourceBadge(sourceType: string): { icon: string; label: string; className: string } {
-	switch (sourceType) {
+	switch (sourceType?.toLowerCase()) {
 		case 'hn':
-			return { icon: '◧', label: 'HN', className: 'bg-orange-500/10 text-orange-300 border border-orange-500/20' };
+			return { icon: '◧', label: 'HN', className: 'source-badge source-badge--hn' };
 		case 'reddit':
-			return { icon: '◉', label: 'Reddit', className: 'bg-blue-500/10 text-blue-300 border border-blue-500/20' };
+			return { icon: '◉', label: 'Reddit', className: 'source-badge source-badge--reddit' };
 		case 'github':
-			return { icon: '◈', label: 'GitHub', className: 'bg-purple-500/10 text-purple-300 border border-purple-500/20' };
+			return { icon: '◈', label: 'GitHub', className: 'source-badge source-badge--github' };
 		case 'rss':
 		default:
-			return { icon: '◆', label: 'RSS', className: 'bg-amber-500/10 text-amber-300 border border-amber-500/20' };
+			return { icon: '◆', label: 'RSS', className: 'source-badge source-badge--rss' };
 	}
 }
 

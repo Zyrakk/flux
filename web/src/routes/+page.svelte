@@ -1,27 +1,116 @@
+<svelte:options runes={true} />
 <script lang="ts">
+	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { marked } from 'marked';
 	import { onMount } from 'svelte';
-	import { fade, fly } from 'svelte/transition';
+	import { fade } from 'svelte/transition';
+	import BootSequence from '$lib/components/BootSequence.svelte';
+	import FeaturedCard from '$lib/components/FeaturedCard.svelte';
+	import SectionHeader from '$lib/components/SectionHeader.svelte';
+	import SignalCard from '$lib/components/SignalCard.svelte';
+	import StatsDashboard from '$lib/components/StatsDashboard.svelte';
 	import { apiFetch, apiJSON } from '$lib/api';
-	import { formatDateTime, formatRelativeTime, isSameCalendarDay, sectionColor, sourceBadge } from '$lib/format';
+	import { isSameCalendarDay, priorityLabel, sectionColor, sectionTint } from '$lib/format';
 	import type { Article, Briefing, FeedbackAction } from '$lib/types';
 
-	const sections = [
-		{ name: 'cybersecurity', displayName: 'Cybersecurity' },
-		{ name: 'tech', displayName: 'Tech' },
-		{ name: 'economy', displayName: 'Economy' },
-		{ name: 'world', displayName: 'World' }
+	type SectionConfig = {
+		name: string;
+		displayName: string;
+		hudLabel: string;
+	};
+
+	const sections: SectionConfig[] = [
+		{ name: 'cybersecurity', displayName: 'Cybersecurity', hudLabel: 'CYBERSEC' },
+		{ name: 'tech', displayName: 'Tech', hudLabel: 'TECH' },
+		{ name: 'economy', displayName: 'Economy', hudLabel: 'ECONOMY' },
+		{ name: 'world', displayName: 'World', hudLabel: 'GEOPOLITICS' }
 	];
 
-	let briefing: Briefing | null = null;
-	let markdownHtml = '';
-	let loading = true;
-	let error = '';
-	let noBriefingToday = false;
-	let activeSection = 'cybersecurity';
+	let briefing = $state<Briefing | null>(null);
+	let markdownHtml = $state('');
+	let loading = $state(true);
+	let error = $state('');
+	let noBriefingToday = $state(false);
+	let bootReady = $state(false);
+	let markdownOpen = $state(true);
+	let activeSection = $state('cybersecurity');
 
-	$: grouped = groupArticlesBySection(briefing?.articles ?? []);
+	const grouped = $derived(groupArticlesBySection(briefing?.articles ?? []));
+	const totalBriefed = $derived(briefing?.articles.length ?? 0);
+	const activeSources = $derived(readMetaNumber(['source_count', 'sources_active', 'active_sources'], 47));
+	const ingestedTotal = $derived(readMetaNumber(['ingested_count', 'total_ingested', 'ingested'], briefing?.articles.length ?? 0));
+	const processedTotal = $derived(
+		readMetaNumber(['processed_count', 'total_processed', 'processed'], briefing?.articles.length ?? 0)
+	);
+	const threatLevel = $derived(hasCritical(grouped.cybersecurity ?? []) ? 'ELEVATED' : 'GUARDED');
+
+	const stats = $derived([
+		{ label: 'SOURCES', value: activeSources, color: '#06b6d4' },
+		{ label: 'INGESTED', value: ingestedTotal, color: 'rgba(255,255,255,0.65)' },
+		{ label: 'PROCESSED', value: processedTotal, color: 'rgba(255,255,255,0.45)' },
+		{ label: 'BRIEFED', value: totalBriefed, color: '#a78bfa' },
+		{ label: 'THREAT LVL', value: threatLevel, color: '#fbbf24', mono: true }
+	]);
+
+	function groupArticlesBySection(articles: Article[]): Record<string, Article[]> {
+		const out: Record<string, Article[]> = {
+			cybersecurity: [],
+			tech: [],
+			economy: [],
+			world: []
+		};
+		for (const article of articles) {
+			const key = article.section?.name ?? 'tech';
+			if (!out[key]) out[key] = [];
+			out[key].push(article);
+		}
+		return out;
+	}
+
+	function readMetaNumber(keys: string[], fallback: number): number {
+		const metadata = briefing?.metadata as Record<string, unknown> | undefined;
+		if (!metadata) return fallback;
+		for (const key of keys) {
+			const value = metadata[key];
+			if (typeof value === 'number' && Number.isFinite(value)) {
+				return value;
+			}
+		}
+		return fallback;
+	}
+
+	function articlePriority(article: Article): string {
+		const metaPriority = article.metadata && typeof article.metadata.priority === 'string' ? article.metadata.priority : undefined;
+		return (metaPriority ?? priorityLabel(article.relevance_score)).toUpperCase();
+	}
+
+	function hasCritical(articles: Article[]): boolean {
+		return articles.some((article) => articlePriority(article) === 'CRITICAL');
+	}
+
+	function priorityClass(article: Article): string {
+		switch (articlePriority(article)) {
+			case 'CRITICAL':
+				return 'priority-badge--critical';
+			case 'HIGH':
+				return 'priority-badge--high';
+			case 'LOW':
+				return 'priority-badge--low';
+			default:
+				return 'priority-badge--medium';
+		}
+	}
+
+	function sectionCount(sectionName: string): number {
+		return grouped[sectionName]?.length ?? 0;
+	}
+
+	function jumpToSection(sectionName: string): void {
+		activeSection = sectionName;
+		if (!browser) return;
+		document.getElementById(`section-${sectionName}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+	}
 
 	async function loadLatestBriefing() {
 		loading = true;
@@ -33,10 +122,12 @@
 				noBriefingToday = true;
 				briefing = null;
 				markdownHtml = '';
+				emitFooterStats(0, activeSources);
 				return;
 			}
 			briefing = payload;
 			markdownHtml = String(marked.parse(payload.content || ''));
+			emitFooterStats(payload.articles.length, readMetaNumber(['source_count', 'sources_active', 'active_sources'], 47));
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'No se pudo cargar el briefing';
 			if (message.includes('UNAUTHORIZED')) {
@@ -47,6 +138,7 @@
 				noBriefingToday = true;
 				briefing = null;
 				markdownHtml = '';
+				emitFooterStats(0, activeSources);
 				return;
 			}
 			error = message;
@@ -55,33 +147,17 @@
 		}
 	}
 
-	function groupArticlesBySection(articles: Article[]): Record<string, Article[]> {
-		const out: Record<string, Article[]> = {
-			cybersecurity: [],
-			tech: [],
-			economy: [],
-			world: []
-		};
-		for (const article of articles) {
-			const key = article.section?.name ?? 'tech';
-			if (!out[key]) {
-				out[key] = [];
-			}
-			out[key].push(article);
-		}
-		return out;
+	function emitFooterStats(briefed: number, sources: number): void {
+		if (!browser) return;
+		window.dispatchEvent(new CustomEvent('flux:stats', { detail: { briefed, sources } }));
 	}
 
-	function sectionStat(sectionName: string): string {
-		if (!briefing) return '0 -> 0';
-		const total = briefing.metadata?.sections?.[sectionName]?.total ?? 0;
-		const inBriefing = grouped[sectionName]?.length ?? 0;
-		return `${total} -> ${inBriefing}`;
+	function bootComplete(): void {
+		bootReady = true;
 	}
 
 	async function onFeedback(article: Article, action: FeedbackAction) {
 		const active = getActionActive(article, action);
-
 		try {
 			const feedbackID = getActionFeedbackID(article, action);
 			if (active && feedbackID) {
@@ -123,8 +199,6 @@
 			alert(message);
 		}
 	}
-
-	onMount(loadLatestBriefing);
 
 	function getActionActive(article: Article, action: FeedbackAction): boolean {
 		switch (action) {
@@ -189,147 +263,148 @@
 				break;
 		}
 	}
+
+	onMount(() => {
+		void loadLatestBriefing();
+	});
 </script>
 
-{#if loading}
-	<div class="panel surface-pad text-center">
-		<div class="loading-pulse text-sm text-slate-500">Generando vista del briefing...</div>
-	</div>
-{:else if error}
-	<div class="alert error">{error}</div>
-{:else if noBriefingToday}
-	<div class="briefing-hero animate-fade-up text-center">
-		<div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-sky-300/40 bg-white/70 text-2xl text-sky-700">
-			◆
+<section class="briefing-page">
+	<BootSequence onComplete={bootComplete} />
+
+	{#if loading}
+		<div class="panel surface-pad text-center">
+			<div class="loading-pulse text-sm text-[rgba(255,255,255,0.45)]">Conectando fuentes y generando briefing...</div>
 		</div>
-		<h1 class="text-xl font-extrabold tracking-tight text-slate-900">No hay briefing disponible todavía</h1>
-		<p class="mx-auto mt-2 max-w-xl text-sm text-slate-600">
-			El próximo briefing diario se genera a las 03:00 UTC.
-		</p>
-		<div class="mt-6 flex flex-wrap items-center justify-center gap-2">
-			<a class="btn-ghost" href="/feed">Abrir feed</a>
-			<a class="btn-ghost" href="/admin/sources">Gestionar fuentes</a>
+	{:else if error}
+		<div class="alert error">{error}</div>
+	{:else if noBriefingToday}
+		<div class="panel surface-pad text-center">
+			<div class="mx-auto mb-3 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-[rgba(6,182,212,0.25)] bg-[rgba(6,182,212,0.08)] text-xl text-[var(--flux-accent)]">
+				◆
+			</div>
+			<h1 class="text-xl font-extrabold tracking-tight text-[rgba(255,255,255,0.9)]">No hay briefing disponible todavía</h1>
+			<p class="mx-auto mt-2 max-w-xl text-sm text-[rgba(255,255,255,0.5)]">
+				El próximo briefing diario se genera durante el siguiente ciclo UTC.
+			</p>
+			<div class="mt-5 flex flex-wrap items-center justify-center gap-2">
+				<a class="btn-ghost" href="/feed">Abrir feed</a>
+				<a class="btn-ghost" href="/admin/sources">Gestionar fuentes</a>
+			</div>
 		</div>
-	</div>
-{:else if briefing}
-	<section class="briefing-page animate-fade-up">
-		<div class="briefing-hero">
-			<div class="briefing-hero__header">
-				<div>
-					<h1 class="briefing-hero__title">Briefing Ejecutivo Diario</h1>
-					<div class="briefing-hero__meta">
-						<span>{formatDateTime(briefing.generated_at)}</span>
-						<span>•</span>
-						<span class="inline-flex items-center gap-2">
-							<span class="status-dot {briefing.metadata?.partial ? 'warning' : 'ok'}"></span>
-							{briefing.metadata?.partial ? 'Parcial' : 'Completo'}
-						</span>
-						<span>•</span>
-						<span>{briefing.articles.length} noticias seleccionadas</span>
+	{:else if briefing}
+		<div class={`briefing-fade ${bootReady ? 'ready' : ''}`}>
+			<div class="mb-5">
+				<StatsDashboard stats={stats} />
+			</div>
+
+			<div class="hud-separator mb-4"></div>
+
+			<div class="mb-4 flex flex-wrap gap-2">
+				{#each sections as sec}
+					<button
+						type="button"
+						class={`section-tab ${activeSection === sec.name ? 'active' : ''}`}
+						style={`--section-tint: ${sectionTint(sec.name)}; color: ${activeSection === sec.name ? sectionColor(sec.name) : ''};`}
+						onclick={() => jumpToSection(sec.name)}
+					>
+						{sec.displayName}
+						<span class="text-[10px] text-[rgba(255,255,255,0.45)]">{sectionCount(sec.name)}</span>
+					</button>
+				{/each}
+			</div>
+
+			<div class="panel surface-pad mb-4">
+				<div class="mb-3 flex items-center justify-between gap-3">
+					<h2 class="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[rgba(255,255,255,0.32)]">
+						ANALYST BRIEFING
+					</h2>
+					<button class="btn-ghost !px-3 !py-1.5 !text-[10px]" onclick={() => (markdownOpen = !markdownOpen)}>
+						{markdownOpen ? 'Ocultar' : 'Mostrar'}
+					</button>
+				</div>
+				{#if markdownOpen}
+					<div class="briefing-markdown prose prose-invert prose-flux max-w-none">
+						{@html markdownHtml}
 					</div>
-				</div>
-
-				<div class="briefing-stats">
-					{#each sections as sec}
-						<div class="stat-chip">
-							<div class="stat-chip__label">{sec.displayName}</div>
-							<div class="stat-chip__value">{sectionStat(sec.name)}</div>
-						</div>
-					{/each}
-				</div>
+				{/if}
 			</div>
 
-			<div class="briefing-markdown panel-subtle prose-flux surface-pad">
-				{@html markdownHtml}
-			</div>
-		</div>
-
-		<div class="section-strip no-scrollbar">
-			{#each sections as sec}
-				<button
-					type="button"
-					on:click={() => (activeSection = sec.name)}
-					class="tab-pill {activeSection === sec.name ? 'active' : ''}"
-				>
-					{sec.displayName}
-					<span class="font-mono text-[11px] text-slate-500">{grouped[sec.name]?.length ?? 0}</span>
-				</button>
-			{/each}
-		</div>
-
-		{#key activeSection}
-			{#if (grouped[activeSection] ?? []).length === 0}
-				<div class="empty-state" in:fade={{ duration: 220 }} out:fade={{ duration: 160 }}>
-					No hay noticias en esta sección para este briefing.
-				</div>
-			{:else}
-				<div class="news-grid" in:fade={{ duration: 220 }} out:fade={{ duration: 160 }}>
-					{#each grouped[activeSection] as article, idx (article.id)}
-						{@const source = sourceBadge(article.source_type)}
-						<article class="news-card" in:fly={{ y: 16, duration: 360, delay: idx * 42 }}>
-							<div class="news-card__top">
-								<span class="badge {source.className}">{source.icon} {source.label}</span>
-								<span class="badge {sectionColor(article.section?.name)}">
-									{article.section?.display_name ?? 'Sin sección'}
-								</span>
-								<span class="text-xs font-semibold text-slate-500">
-									{formatRelativeTime(article.published_at ?? article.ingested_at)}
-								</span>
-							</div>
-
-							<h2 class="news-card__title">
-								<a href={article.url} target="_blank" rel="noreferrer">{article.title}</a>
-							</h2>
-
-							{#if article.summary}
-								<p class="news-card__summary">{article.summary}</p>
-							{/if}
-
-							<div class="news-card__footer">
-								<div class="news-card__relevance">
-									<div class="mb-1 flex items-center justify-between text-[11px] font-semibold text-slate-500">
-										<span>Relevancia</span>
-										<span class="font-mono">{article.relevance_score?.toFixed(3) ?? '—'}</span>
-									</div>
-									<div class="relevance-track">
-										<div
-											class="relevance-fill"
-											style="width: {Math.round(Math.max(0, Math.min(1, article.relevance_score ?? 0)) * 100)}%;"
-										></div>
-									</div>
-								</div>
-
-								<div class="feedback-row">
+			{#each sections as sec, sectionIndex}
+				{@const articles = grouped[sec.name] ?? []}
+				{#if articles.length > 0}
+					<section id={`section-${sec.name}`} class="section-block" style={`--section-tint: ${sectionTint(sec.name)};`}>
+						<SectionHeader label={sec.hudLabel} count={articles.length} tint={sectionTint(sec.name)} />
+						<div class={`section-grid ${articles.length > 1 ? 'has-side' : ''}`}>
+							<div>
+								<FeaturedCard article={articles[0]} sectionTint={sectionTint(sec.name)} delay={sectionIndex * 120 + 200} />
+								<div class="feedback-row mt-2">
 									<button
 										type="button"
-										class="feedback-btn {article.feedback.liked ? 'liked' : ''}"
-										on:click={() => onFeedback(article, 'like')}
+										class={`feedback-btn ${articles[0].feedback.liked ? 'liked' : ''}`}
+										onclick={() => onFeedback(articles[0], 'like')}
 									>
 										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
-										{article.feedback.likes}
+										{articles[0].feedback.likes}
 									</button>
 									<button
 										type="button"
-										class="feedback-btn {article.feedback.disliked ? 'disliked' : ''}"
-										on:click={() => onFeedback(article, 'dislike')}
+										class={`feedback-btn ${articles[0].feedback.disliked ? 'disliked' : ''}`}
+										onclick={() => onFeedback(articles[0], 'dislike')}
 									>
 										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/></svg>
-										{article.feedback.dislikes}
+										{articles[0].feedback.dislikes}
 									</button>
 									<button
 										type="button"
-										class="feedback-btn {article.feedback.saved ? 'saved' : ''}"
-										on:click={() => onFeedback(article, 'save')}
+										class={`feedback-btn ${articles[0].feedback.saved ? 'saved' : ''}`}
+										onclick={() => onFeedback(articles[0], 'save')}
 									>
-										<svg width="14" height="14" viewBox="0 0 24 24" fill="{article.feedback.saved ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
-										{article.feedback.saves}
+										<svg width="14" height="14" viewBox="0 0 24 24" fill={articles[0].feedback.saved ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+										{articles[0].feedback.saves}
 									</button>
 								</div>
 							</div>
-						</article>
-					{/each}
-				</div>
-			{/if}
-		{/key}
-	</section>
-{/if}
+
+							{#if articles.length > 1}
+								<div class="section-grid__side">
+									{#each articles.slice(1) as article, idx (article.id)}
+										<div>
+											<SignalCard article={article} sectionTint={sectionTint(sec.name)} index={idx} />
+											<div class="feedback-row mt-2">
+												<button
+													type="button"
+													class={`feedback-btn ${article.feedback.liked ? 'liked' : ''}`}
+													onclick={() => onFeedback(article, 'like')}
+												>
+													<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+													{article.feedback.likes}
+												</button>
+												<button
+													type="button"
+													class={`feedback-btn ${article.feedback.disliked ? 'disliked' : ''}`}
+													onclick={() => onFeedback(article, 'dislike')}
+												>
+													<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/></svg>
+													{article.feedback.dislikes}
+												</button>
+												<button
+													type="button"
+													class={`feedback-btn ${article.feedback.saved ? 'saved' : ''}`}
+													onclick={() => onFeedback(article, 'save')}
+												>
+													<svg width="14" height="14" viewBox="0 0 24 24" fill={article.feedback.saved ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+													{article.feedback.saves}
+												</button>
+											</div>
+										</div>
+									{/each}
+								</div>
+							{/if}
+						</div>
+					</section>
+				{/if}
+			{/each}
+		</div>
+	{/if}
+</section>

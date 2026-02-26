@@ -1,9 +1,10 @@
+<svelte:options runes={true} />
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { setAuthToken } from '$lib/api';
 
-	let token = '';
-	let error = '';
+	let token = $state('');
+	let error = $state('');
 
 	async function login() {
 		error = '';
@@ -18,12 +19,12 @@
 	}
 </script>
 
-<div class="flex min-h-[70vh] items-center justify-center px-3">
-	<div class="briefing-hero w-full max-w-md animate-fade-up">
-		<div class="mb-6 text-center">
+<div class="flex min-h-[72vh] items-center justify-center px-3">
+	<div class="login-panel">
+		<div class="mb-7 text-center">
 			<div class="site-brand__mark mx-auto h-14 w-14 text-xl">F</div>
-			<h1 class="mt-4 text-2xl font-extrabold tracking-tight text-slate-900">Flux Access</h1>
-			<p class="mt-2 text-sm text-slate-600">Introduce tu token para acceder al briefing.</p>
+			<h1 class="login-title mt-4">Flux Access</h1>
+			<p class="mt-2 text-sm text-[rgba(255,255,255,0.5)]">Introduce tu token para acceder al briefing.</p>
 		</div>
 
 		{#if error}
@@ -36,14 +37,14 @@
 				type="password"
 				placeholder="Token"
 				bind:value={token}
-				on:keydown={onKeyDown}
+				onkeydown={onKeyDown}
 				autocomplete="current-password"
 			/>
 
-			<button class="btn-primary w-full" on:click={login}>Acceder</button>
+			<button class="btn-primary w-full !py-2.5" onclick={login}>Acceder</button>
 		</div>
 
-		<p class="mt-5 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
+		<p class="mt-5 text-center font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[rgba(255,255,255,0.32)]">
 			Puedes dejarlo vacío si usas auth por reverse-proxy.
 		</p>
 	</div>

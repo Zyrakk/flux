@@ -1,129 +1,44 @@
+<svelte:options runes={true} />
 <script lang="ts">
 	import '../app.css';
 	import { onMount } from 'svelte';
+	import type { Snippet } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { afterNavigate, goto } from '$app/navigation';
-	import { page } from '$app/stores';
 	import { browser } from '$app/environment';
+	import { page } from '$app/state';
+	import CursorReticle from '$lib/components/CursorReticle.svelte';
+	import HexGrid from '$lib/components/HexGrid.svelte';
 	import { clearAuthToken, getAuthToken } from '$lib/api';
 
-	let hasToken = false;
+	let { children }: { children: Snippet } = $props();
+	let hasToken = $state(false);
+	let generatedAt = $state('');
+	let totalBriefed = $state(0);
+	let totalSources = $state(47);
+	let nextGenTime = $state('');
 
-	function setGlyphVariable(name: string, value: string): void {
-		document.documentElement.style.setProperty(name, value);
+	function toUTCLabel(date: Date): string {
+		return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')} ${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')} UTC`;
 	}
 
-	function setGlyphDefaults(): void {
-		setGlyphVariable('--spot-x', '50%');
-		setGlyphVariable('--spot-y', '38%');
-		setGlyphVariable('--spot-radius', '220px');
-		setGlyphVariable('--glyph-scroll', '0px');
+	function toUTCIso(date: Date): string {
+		return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}T${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}Z`;
 	}
 
-	function addMediaQueryListener(query: MediaQueryList, handler: () => void): () => void {
-		if (typeof query.addEventListener === 'function') {
-			query.addEventListener('change', handler);
-			return () => query.removeEventListener('change', handler);
+	function computeNextGen(): string {
+		const now = new Date();
+		const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 6, 0, 0, 0));
+		if (now >= next) {
+			next.setUTCDate(next.getUTCDate() + 1);
 		}
-		query.addListener(handler);
-		return () => query.removeListener(handler);
+		return toUTCIso(next);
 	}
 
-	function setupGlyphSpotlight(): () => void {
-		const root = document.documentElement;
-		const reduceMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-		const coarsePointerQuery = window.matchMedia('(pointer: coarse)');
-		const disabled = (): boolean => reduceMotionQuery.matches || coarsePointerQuery.matches;
-		const clamp = (value: number, min: number, max: number): number => Math.min(Math.max(value, min), max);
-
-		let lastClientX = window.innerWidth * 0.5;
-		let lastClientY = window.innerHeight * 0.38;
-
-		function updateMode(): void {
-			root.classList.toggle('glyph-static', disabled());
-		}
-
-		function updateSpotlight(clientX: number, clientY: number): void {
-			const xPercent = clamp((clientX / Math.max(window.innerWidth, 1)) * 100, 0, 100);
-			const yPercent = clamp((clientY / Math.max(window.innerHeight, 1)) * 100, 0, 100);
-			const radius = 200 + Math.round((1 - Math.abs(xPercent - 50) / 50) * 40);
-			setGlyphVariable('--spot-x', `${xPercent.toFixed(2)}%`);
-			setGlyphVariable('--spot-y', `${yPercent.toFixed(2)}%`);
-			setGlyphVariable('--spot-radius', `${radius}px`);
-		}
-
-		function updateScrollShift(): void {
-			setGlyphVariable('--glyph-scroll', `${Math.round(window.scrollY)}px`);
-		}
-
-		function onPointerMove(event: PointerEvent): void {
-			if (disabled()) return;
-			lastClientX = event.clientX;
-			lastClientY = event.clientY;
-			updateSpotlight(lastClientX, lastClientY);
-		}
-
-		function onScroll(): void {
-			updateScrollShift();
-		}
-
-		function onResize(): void {
-			updateScrollShift();
-			if (disabled()) return;
-			lastClientX = clamp(lastClientX, 0, window.innerWidth);
-			lastClientY = clamp(lastClientY, 0, window.innerHeight);
-			updateSpotlight(lastClientX, lastClientY);
-		}
-
-		function onPreferenceChange(): void {
-			updateMode();
-			updateScrollShift();
-			if (disabled()) {
-				setGlyphDefaults();
-				return;
-			}
-			updateSpotlight(lastClientX, lastClientY);
-		}
-
-		updateMode();
-		updateScrollShift();
-		if (disabled()) {
-			setGlyphDefaults();
-		} else {
-			updateSpotlight(lastClientX, lastClientY);
-		}
-
-		window.addEventListener('pointermove', onPointerMove, { passive: true });
-		window.addEventListener('scroll', onScroll, { passive: true });
-		window.addEventListener('resize', onResize, { passive: true });
-		const removeReduceMotionListener = addMediaQueryListener(reduceMotionQuery, onPreferenceChange);
-		const removeCoarsePointerListener = addMediaQueryListener(coarsePointerQuery, onPreferenceChange);
-
-		return () => {
-			window.removeEventListener('pointermove', onPointerMove);
-			window.removeEventListener('scroll', onScroll);
-			window.removeEventListener('resize', onResize);
-			removeReduceMotionListener();
-			removeCoarsePointerListener();
-		};
+	function syncStatusClock(): void {
+		generatedAt = toUTCLabel(new Date());
+		nextGenTime = computeNextGen();
 	}
-
-	onMount(() => {
-		hasToken = getAuthToken() !== '';
-		if ('serviceWorker' in navigator) {
-			navigator.serviceWorker
-				.register('/service-worker.js', { updateViaCache: 'none' })
-				.then((registration) => registration.update().catch(() => {}))
-				.catch(() => {});
-		}
-
-		const cleanupGlyphSpotlight = setupGlyphSpotlight();
-		return () => cleanupGlyphSpotlight();
-	});
-
-	afterNavigate(() => {
-		hasToken = getAuthToken() !== '';
-	});
 
 	async function logout() {
 		clearAuthToken();
@@ -143,6 +58,37 @@
 		if (href === '/') return pathname === '/';
 		return pathname.startsWith(href);
 	}
+
+	if (browser) {
+		afterNavigate(() => {
+			hasToken = getAuthToken() !== '';
+		});
+	}
+
+	onMount(() => {
+		hasToken = getAuthToken() !== '';
+		syncStatusClock();
+
+		if ('serviceWorker' in navigator) {
+			navigator.serviceWorker
+				.register('/service-worker.js', { updateViaCache: 'none' })
+				.then((registration) => registration.update().catch(() => {}))
+				.catch(() => {});
+		}
+
+		const timer = window.setInterval(syncStatusClock, 60_000);
+		const onFluxStats = (event: Event): void => {
+			const detail = (event as CustomEvent<{ briefed?: number; sources?: number }>).detail;
+			if (typeof detail?.briefed === 'number') totalBriefed = detail.briefed;
+			if (typeof detail?.sources === 'number') totalSources = detail.sources;
+		};
+		window.addEventListener('flux:stats', onFluxStats as EventListener);
+
+		return () => {
+			window.clearInterval(timer);
+			window.removeEventListener('flux:stats', onFluxStats as EventListener);
+		};
+	});
 </script>
 
 <svelte:head>
@@ -150,29 +96,33 @@
 </svelte:head>
 
 <div class="site-shell">
-	<div class="glyph-stage" aria-hidden="true">
-		<div class="glyph-grid glyph-grid--base"></div>
-		<div class="glyph-grid glyph-grid--glow"></div>
-		<div class="glyph-spot"></div>
-		<div class="glyph-vignette"></div>
+	<div class="void-stage" aria-hidden="true">
+		<HexGrid />
+		<div class="ambient-blob ambient-blob--cyan"></div>
+		<div class="ambient-blob ambient-blob--violet"></div>
+		<div class="ambient-blob ambient-blob--emerald"></div>
+		<div class="noise-grain"></div>
+		<div class="scan-line"></div>
 	</div>
+
+	<CursorReticle />
 
 	<header class="site-header">
 		<div class="site-header__inner">
 			<a href="/" class="site-brand">
 				<span class="site-brand__mark">F</span>
-				<span class="site-brand__text">
-					<span class="site-brand__title">Flux Intelligence</span>
-					<span class="site-brand__subtitle">Daily Signal Briefing</span>
+				<span>
+					<span class="site-brand__title">FLUX</span>
+					<span class="site-brand__subtitle">INTELLIGENCE BRIEFING SYSTEM</span>
 				</span>
 			</a>
 
-			<div class="flex items-center gap-2">
+			<div class="site-header__right">
 				<nav class="site-nav">
 					{#each navItems as item}
 						<a
 							href={item.href}
-							class="site-nav__link {isActive(item.href, $page.url.pathname) ? 'active' : ''}"
+							class="site-nav__link {isActive(item.href, page.url.pathname) ? 'active' : ''}"
 						>
 							<span class="site-nav__link-icon">{item.icon}</span>
 							{item.label}
@@ -181,21 +131,33 @@
 				</nav>
 
 				{#if hasToken}
-					<button class="btn-ghost !rounded-full !px-3 !py-2 !text-[11px]" on:click={logout}>
-						Salir
-					</button>
+					<button class="btn-ghost !rounded-full !px-3 !py-2 !text-[11px]" onclick={logout}>Salir</button>
 				{/if}
+
+				<div class="site-status">
+					<div>
+						STATUS: <span class="site-status__ok">■ OPERATIONAL</span>
+					</div>
+					<div>GEN: {generatedAt}</div>
+				</div>
 			</div>
 		</div>
 	</header>
 
 	<main class="site-main">
-		{#key $page.url.pathname}
+		{#key page.url.pathname}
 			<div class="route-stage" in:fade={{ duration: 260 }} out:fade={{ duration: 140 }}>
-				<slot />
+				{@render children()}
 			</div>
 		{/key}
 	</main>
 
-	<footer class="site-footer">Flux · read less, know more</footer>
+	<footer class="site-footer">
+		<div class="site-footer__inner">
+			<div class="site-footer__line-primary">FLUX INTELLIGENCE · SIGNAL PROCESSING COMPLETE</div>
+			<div class="site-footer__line-secondary">
+				<strong>{totalBriefed.toLocaleString()}</strong> ITEMS BRIEFED · <strong>{totalSources.toLocaleString()}</strong> SOURCES ACTIVE · NEXT GEN <strong>{nextGenTime}</strong>
+			</div>
+		</div>
+	</footer>
 </div>

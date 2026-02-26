@@ -1,26 +1,26 @@
+<svelte:options runes={true} />
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { fly } from 'svelte/transition';
 	import { apiJSON } from '$lib/api';
-	import { formatRelativeTime } from '$lib/format';
+	import { formatRelativeTime, sectionTint } from '$lib/format';
 	import type { Section, Source } from '$lib/types';
 
-	let sources: Source[] = [];
-	let sections: Section[] = [];
-	let loading = true;
-	let error = '';
-	let saving = false;
+	let sources = $state<Source[]>([]);
+	let sections = $state<Section[]>([]);
+	let loading = $state(true);
+	let error = $state('');
+	let saving = $state(false);
 
-	let draggedSectionId: string | null = null;
+	let draggedSectionId = $state<string | null>(null);
 
-	let newSourceName = '';
-	let newSourceURL = '';
-	let newSourceSectionIDs: string[] = [];
+	let newSourceName = $state('');
+	let newSourceURL = $state('');
+	let newSourceSectionIDs = $state<string[]>([]);
 
-	let newSectionName = '';
-	let newSectionDisplayName = '';
-	let newSectionKeywords = '';
+	let newSectionName = $state('');
+	let newSectionDisplayName = $state('');
+	let newSectionKeywords = $state('');
 
 	onMount(async () => {
 		await loadAll();
@@ -182,10 +182,10 @@
 		}
 	}
 
-	function sourceState(source: Source): { dot: string } {
-		if (!source.enabled) return { dot: 'error' };
-		if (source.error_count > 0) return { dot: 'warning' };
-		return { dot: 'ok' };
+	function sourceState(source: Source): { dot: string; label: string } {
+		if (!source.enabled) return { dot: 'error', label: 'Disabled' };
+		if (source.error_count > 0) return { dot: 'warning', label: 'Warning' };
+		return { dot: 'ok', label: 'Healthy' };
 	}
 
 	async function handleError(err: unknown) {
@@ -198,10 +198,10 @@
 	}
 </script>
 
-<section class="briefing-page animate-fade-up">
-	<div class="briefing-hero">
-		<h1 class="briefing-hero__title">Panel de Administración</h1>
-		<p class="mt-2 max-w-2xl text-sm text-slate-600">
+<section class="briefing-page">
+	<div class="panel surface-pad">
+		<h1 class="text-xl font-extrabold tracking-tight text-[rgba(255,255,255,0.92)]">Panel de Administración</h1>
+		<p class="mt-2 max-w-2xl text-sm text-[rgba(255,255,255,0.5)]">
 			Gestiona fuentes RSS, secciones y reglas de briefing desde una vista centralizada.
 		</p>
 	</div>
@@ -210,22 +210,22 @@
 		<div class="alert error">{error}</div>
 	{/if}
 
-	<div class="panel overflow-hidden" in:fly={{ y: 12, duration: 300 }}>
+	<div class="panel overflow-hidden">
 		<div class="flex items-center justify-between px-5 pb-3 pt-5">
-			<h2 class="text-base font-extrabold text-slate-900">Fuentes</h2>
-			<span class="text-xs font-bold uppercase tracking-wide text-slate-500">{sources.length} configuradas</span>
+			<h2 class="text-base font-extrabold text-[rgba(255,255,255,0.9)]">Fuentes</h2>
+			<span class="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-[rgba(255,255,255,0.35)]">{sources.length} configuradas</span>
 		</div>
 
 		{#if loading}
 			<div class="px-5 pb-5 text-center">
-				<span class="loading-pulse text-sm text-slate-500">Cargando fuentes...</span>
+				<span class="loading-pulse text-sm text-[rgba(255,255,255,0.45)]">Cargando fuentes...</span>
 			</div>
 		{:else}
 			<div class="overflow-x-auto px-3 pb-3">
-				<table class="glass-table">
+				<table class="table-hud">
 					<thead>
 						<tr>
-							<th class="w-8"></th>
+							<th>Estado</th>
 							<th>Nombre</th>
 							<th>Tipo</th>
 							<th class="hidden sm:table-cell">Secciones</th>
@@ -238,26 +238,31 @@
 						{#each sources as source (source.id)}
 							{@const state = sourceState(source)}
 							<tr>
-								<td><span class="status-dot {state.dot}"></span></td>
 								<td>
-									<div class="font-semibold text-slate-900">{source.name}</div>
+									<div class="inline-flex items-center gap-2">
+										<span class={`status-dot ${state.dot}`}></span>
+										<span class="text-[11px] text-[rgba(255,255,255,0.42)]">{state.label}</span>
+									</div>
+								</td>
+								<td>
+									<div class="font-semibold text-[rgba(255,255,255,0.85)]">{source.name}</div>
 									{#if source.last_error}
-										<div class="mt-1 max-w-[240px] truncate text-[11px] text-slate-500" title={source.last_error}>
+										<div class="mt-1 max-w-[300px] truncate text-[11px] text-[rgba(255,255,255,0.38)]" title={source.last_error}>
 											{source.last_error}
 										</div>
 									{/if}
 								</td>
 								<td>
-									<span class="badge">{source.source_type.toUpperCase()}</span>
+									<span class="source-badge source-badge--rss">{source.source_type.toUpperCase()}</span>
 								</td>
-								<td class="hidden sm:table-cell text-xs">
+								<td class="hidden sm:table-cell text-xs text-[rgba(255,255,255,0.52)]">
 									{source.sections.map((s) => s.display_name).join(', ') || '—'}
 								</td>
-								<td class="hidden md:table-cell text-xs text-slate-500">
+								<td class="hidden md:table-cell text-xs text-[rgba(255,255,255,0.42)]">
 									{formatRelativeTime(source.last_fetched_at)}
 								</td>
 								<td class="hidden lg:table-cell">
-									<div class="text-[11px] leading-tight text-slate-500">
+									<div class="text-[11px] leading-tight text-[rgba(255,255,255,0.4)]">
 										<span>Total: {source.stats.total_ingested}</span>
 										<span class="mx-1">•</span>
 										<span>24h: {source.stats.last_24h}</span>
@@ -266,7 +271,7 @@
 									</div>
 								</td>
 								<td class="text-right">
-									<button class="btn-ghost !px-3 !py-1.5 !text-[11px]" on:click={() => toggleSource(source)}>
+									<button class="btn-ghost !px-3 !py-1.5 !text-[10px]" onclick={() => toggleSource(source)}>
 										{source.enabled ? 'Deshabilitar' : 'Habilitar'}
 									</button>
 								</td>
@@ -279,22 +284,26 @@
 	</div>
 
 	<div class="grid gap-4 lg:grid-cols-2">
-		<div class="panel surface-pad" in:fly={{ y: 14, duration: 320, delay: 40 }}>
-			<h2 class="text-base font-extrabold text-slate-900">Añadir Fuente RSS</h2>
+		<div class="panel surface-pad">
+			<h2 class="text-base font-extrabold text-[rgba(255,255,255,0.9)]">Añadir Fuente RSS</h2>
 			<div class="mt-4 space-y-3">
 				<input class="input" placeholder="Nombre" bind:value={newSourceName} />
 				<input class="input" placeholder="URL RSS" bind:value={newSourceURL} />
 
 				<div>
-					<div class="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Secciones</div>
+					<div class="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[rgba(255,255,255,0.34)]">Secciones</div>
 					<div class="flex flex-wrap gap-1.5">
 						{#each sections as section}
-							<label class="tab-pill cursor-pointer {newSourceSectionIDs.includes(section.id) ? 'active' : ''}">
+							<label
+								class={`section-tab ${newSourceSectionIDs.includes(section.id) ? 'active' : ''}`}
+								style={`--section-tint: ${sectionTint(section.name)};`}
+							>
 								<input
 									type="checkbox"
-									class="sr-only"
+									class="hud-checkbox"
+									style={`--section-tint: ${sectionTint(section.name)};`}
 									checked={newSourceSectionIDs.includes(section.id)}
-									on:change={() => toggleNewSourceSection(section.id)}
+									onchange={() => toggleNewSourceSection(section.id)}
 								/>
 								{section.display_name}
 							</label>
@@ -302,14 +311,14 @@
 					</div>
 				</div>
 
-				<button class="btn-primary w-full" disabled={saving} on:click={createSource}>
+				<button class="btn-primary w-full" disabled={saving} onclick={createSource}>
 					{saving ? 'Validando...' : 'Añadir fuente'}
 				</button>
 			</div>
 		</div>
 
-		<div class="panel surface-pad" in:fly={{ y: 14, duration: 320, delay: 80 }}>
-			<h2 class="text-base font-extrabold text-slate-900">Crear Sección</h2>
+		<div class="panel surface-pad">
+			<h2 class="text-base font-extrabold text-[rgba(255,255,255,0.9)]">Crear Sección</h2>
 			<div class="mt-4 space-y-3">
 				<input class="input" placeholder="name (slug)" bind:value={newSectionName} />
 				<input class="input" placeholder="display_name (ej: Seguridad)" bind:value={newSectionDisplayName} />
@@ -319,16 +328,16 @@
 					placeholder="seed keywords separadas por coma"
 					bind:value={newSectionKeywords}
 				></textarea>
-				<button class="btn-primary w-full" on:click={createSection}>Crear sección</button>
+				<button class="btn-primary w-full" onclick={createSection}>Crear sección</button>
 			</div>
 		</div>
 	</div>
 
-	<div class="panel surface-pad" in:fly={{ y: 16, duration: 340, delay: 120 }}>
+	<div class="panel surface-pad">
 		<div class="flex flex-wrap items-end justify-between gap-3">
 			<div>
-				<h2 class="text-base font-extrabold text-slate-900">Gestión de Secciones</h2>
-				<p class="mt-1 text-sm text-slate-600">
+				<h2 class="text-base font-extrabold text-[rgba(255,255,255,0.9)]">Gestión de Secciones</h2>
+				<p class="mt-1 text-sm text-[rgba(255,255,255,0.5)]">
 					Arrastra para reordenar, activa o desactiva y ajusta el máximo por briefing.
 				</p>
 			</div>
@@ -337,26 +346,33 @@
 		<div class="mt-4 space-y-2">
 			{#each sections as section (section.id)}
 				<div
-					class="panel-subtle draggable-section rounded-2xl p-3 transition-all duration-200"
+					class="panel-subtle rounded-2xl p-3 transition-all duration-200"
 					draggable="true"
 					role="listitem"
-					on:dragstart={() => onDragStart(section.id)}
-					on:dragover|preventDefault
-					on:drop={() => onDrop(section.id)}
-					in:fly={{ y: 8, duration: 220 }}
+					ondragstart={() => onDragStart(section.id)}
+					ondragover={(event) => event.preventDefault()}
+					ondrop={() => onDrop(section.id)}
 				>
 					<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 						<div class="flex items-center gap-3">
-							<span class="text-sm text-slate-400">⠿</span>
+							<span class="text-sm text-[rgba(255,255,255,0.4)]">⠿</span>
 							<div>
-								<div class="text-sm font-bold text-slate-900">{section.display_name}</div>
-								<div class="text-xs text-slate-500">{section.name} · orden: {section.sort_order}</div>
+								<div class="text-sm font-bold text-[rgba(255,255,255,0.86)]">{section.display_name}</div>
+								<div class="text-xs text-[rgba(255,255,255,0.42)]">
+									{section.name} · orden: {section.sort_order}
+								</div>
 							</div>
 						</div>
 
 						<div class="flex flex-wrap items-center gap-2.5">
-							<label class="inline-flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-slate-600">
-								<input type="checkbox" checked={section.enabled} on:change={() => toggleSectionEnabled(section)} />
+							<label class="inline-flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-[rgba(255,255,255,0.58)]">
+								<input
+									type="checkbox"
+									class="hud-checkbox"
+									style={`--section-tint: ${sectionTint(section.name)};`}
+									checked={section.enabled}
+									onchange={() => toggleSectionEnabled(section)}
+								/>
 								Activa
 							</label>
 
@@ -367,7 +383,7 @@
 									min="1"
 									bind:value={section.max_briefing_articles}
 								/>
-								<button class="btn-ghost !px-3 !py-1.5 !text-[11px]" on:click={() => saveSectionMax(section)}>
+								<button class="btn-ghost !px-3 !py-1.5 !text-[10px]" onclick={() => saveSectionMax(section)}>
 									Guardar
 								</button>
 							</div>
