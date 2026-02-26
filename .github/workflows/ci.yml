@@ -46,6 +46,7 @@ jobs:
       packages: write
     strategy:
       fail-fast: false
+      max-parallel: 3
       matrix:
         service: [api, worker-rss, worker-hn, worker-reddit, worker-github, processor, briefing-gen, embeddings-svc, frontend]
     steps:
@@ -64,14 +65,14 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          for attempt in 1 2 3 4 5; do
+          for attempt in 1 2 3 4 5 6; do
             if echo "$GHCR_TOKEN" | docker login "${{ env.REGISTRY }}" -u "$GHCR_USER" --password-stdin; then
               exit 0
             fi
-            echo "GHCR login failed (attempt ${attempt}/5), retrying..."
-            sleep $((attempt * 8))
+            echo "GHCR login failed (attempt ${attempt}/6), retrying..."
+            sleep $((attempt * 20))
           done
-          echo "GHCR login failed after 5 attempts" >&2
+          echo "GHCR login failed after 6 attempts" >&2
           exit 1
 
       - name: Compute image prefix
@@ -81,7 +82,10 @@ jobs:
           owner="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
           echo "prefix=ghcr.io/${owner}/flux" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push
+      - name: Build and push (with cache)
+        id: build_with_cache
+        continue-on-error: true
+        timeout-minutes: 45
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -93,3 +97,16 @@ jobs:
             ${{ steps.image.outputs.prefix }}-${{ matrix.service }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Build and push (fallback without cache)
+        if: steps.build_with_cache.outcome == 'failure'
+        timeout-minutes: 45
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/Dockerfile.${{ matrix.service }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ steps.image.outputs.prefix }}-${{ matrix.service }}:latest
+            ${{ steps.image.outputs.prefix }}-${{ matrix.service }}:${{ github.sha }}
