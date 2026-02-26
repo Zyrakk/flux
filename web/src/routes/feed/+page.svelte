@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { onDestroy, onMount } from 'svelte';
+	import { fly, slide } from 'svelte/transition';
 	import { apiFetch, apiJSON } from '$lib/api';
 	import { formatDateTime, formatRelativeTime, sectionColor, sourceBadge } from '$lib/format';
 	import type { Article, FeedbackAction, Section, Source } from '$lib/types';
@@ -120,7 +121,7 @@
 				setActionActive(article, action, false);
 				setActionFeedbackID(article, action, undefined);
 				adjustActionCount(article, action, -1);
-				articles = articles; // Trigger Svelte reactivity
+				articles = articles;
 				return;
 			}
 
@@ -142,7 +143,7 @@
 				article.feedback.liked = false;
 				article.feedback.likes = Math.max(0, article.feedback.likes - 1);
 			}
-			articles = articles; // Trigger Svelte reactivity
+			articles = articles;
 		} catch (err) {
 			await handleError(err);
 		}
@@ -164,76 +165,100 @@
 
 	function getActionActive(article: Article, action: FeedbackAction): boolean {
 		switch (action) {
-			case 'like': return article.feedback.liked;
-			case 'dislike': return article.feedback.disliked;
-			case 'save': return article.feedback.saved;
+			case 'like':
+				return article.feedback.liked;
+			case 'dislike':
+				return article.feedback.disliked;
+			case 'save':
+				return article.feedback.saved;
 		}
 	}
 
 	function setActionActive(article: Article, action: FeedbackAction, value: boolean): void {
 		switch (action) {
-			case 'like': article.feedback.liked = value; break;
-			case 'dislike': article.feedback.disliked = value; break;
-			case 'save': article.feedback.saved = value; break;
+			case 'like':
+				article.feedback.liked = value;
+				break;
+			case 'dislike':
+				article.feedback.disliked = value;
+				break;
+			case 'save':
+				article.feedback.saved = value;
+				break;
 		}
 	}
 
 	function adjustActionCount(article: Article, action: FeedbackAction, delta: number): void {
 		switch (action) {
-			case 'like': article.feedback.likes = Math.max(0, article.feedback.likes + delta); break;
-			case 'dislike': article.feedback.dislikes = Math.max(0, article.feedback.dislikes + delta); break;
-			case 'save': article.feedback.saves = Math.max(0, article.feedback.saves + delta); break;
+			case 'like':
+				article.feedback.likes = Math.max(0, article.feedback.likes + delta);
+				break;
+			case 'dislike':
+				article.feedback.dislikes = Math.max(0, article.feedback.dislikes + delta);
+				break;
+			case 'save':
+				article.feedback.saves = Math.max(0, article.feedback.saves + delta);
+				break;
 		}
 	}
 
 	function getActionFeedbackID(article: Article, action: FeedbackAction): string | undefined {
 		switch (action) {
-			case 'like': return article.feedback.like_id;
-			case 'dislike': return article.feedback.dislike_id;
-			case 'save': return article.feedback.save_id;
+			case 'like':
+				return article.feedback.like_id;
+			case 'dislike':
+				return article.feedback.dislike_id;
+			case 'save':
+				return article.feedback.save_id;
 		}
 	}
 
 	function setActionFeedbackID(article: Article, action: FeedbackAction, id?: string): void {
 		switch (action) {
-			case 'like': article.feedback.like_id = id; break;
-			case 'dislike': article.feedback.dislike_id = id; break;
-			case 'save': article.feedback.save_id = id; break;
+			case 'like':
+				article.feedback.like_id = id;
+				break;
+			case 'dislike':
+				article.feedback.dislike_id = id;
+				break;
+			case 'save':
+				article.feedback.save_id = id;
+				break;
 		}
 	}
 
-	$: activeFilterCount = selectedSections.length + (sourceRef ? 1 : 0) + (status ? 1 : 0) + (fromDate ? 1 : 0) + (toDate ? 1 : 0) + (likedOnly ? 1 : 0);
+	$: activeFilterCount =
+		selectedSections.length +
+		(sourceRef ? 1 : 0) +
+		(status ? 1 : 0) +
+		(fromDate ? 1 : 0) +
+		(toDate ? 1 : 0) +
+		(likedOnly ? 1 : 0);
 </script>
 
-<section class="space-y-5 animate-fade-up">
-	<!-- Header + Filters -->
-	<div class="glass-elevated p-5">
-		<div class="flex items-center justify-between">
+<section class="briefing-page animate-fade-up">
+	<div class="panel surface-pad">
+		<div class="flex flex-wrap items-center justify-between gap-3">
 			<div>
-				<h1 class="text-xl font-semibold tracking-tight" style="color: var(--flux-text);">Feed</h1>
-				<p class="mt-0.5 text-xs" style="color: var(--flux-text-muted);">
-					Todos los artículos ingestados · {articles.length} cargados
-				</p>
+				<h1 class="text-xl font-extrabold tracking-tight text-slate-900">Feed de Noticias</h1>
+				<p class="mt-1 text-sm text-slate-600">Explora todas las noticias ingestadas con filtros avanzados.</p>
 			</div>
-			<button
-				class="btn-ghost text-xs"
-				on:click={() => (filtersOpen = !filtersOpen)}
-			>
+
+			<button class="btn-ghost" on:click={() => (filtersOpen = !filtersOpen)}>
 				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
 				Filtros
 				{#if activeFilterCount > 0}
-					<span class="ml-1 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold" style="background: var(--flux-accent); color: #020617;">{activeFilterCount}</span>
+					<span class="ml-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-sky-500 px-1 text-[11px] font-bold text-white">{activeFilterCount}</span>
 				{/if}
 			</button>
 		</div>
 
 		{#if filtersOpen}
-			<div class="mt-4 space-y-4" style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem;">
-				<!-- Sections -->
-				<div>
+			<div class="mt-4 rounded-2xl border border-slate-200/80 bg-white/60 p-4" transition:slide={{ duration: 220 }}>
+				<div class="mb-4">
 					<div class="mb-2 flex items-center justify-between">
-						<span class="text-xs font-medium" style="color: var(--flux-text-soft);">Secciones</span>
-						<button class="text-[11px] transition-colors" style="color: var(--flux-text-muted);" on:click={clearSectionFilter}>Todas</button>
+						<span class="text-xs font-bold uppercase tracking-wide text-slate-500">Secciones</span>
+						<button class="text-xs font-semibold text-slate-500 hover:text-slate-700" on:click={clearSectionFilter}>Todas</button>
 					</div>
 					<div class="flex flex-wrap gap-1.5">
 						{#each sections as sec}
@@ -250,11 +275,10 @@
 					</div>
 				</div>
 
-				<!-- Source / Status / Dates / Liked -->
 				<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
 					<div>
-						<label class="mb-1 block text-[11px] font-medium" style="color: var(--flux-text-muted);">Fuente</label>
-						<select class="input w-full" bind:value={sourceRef} on:change={() => void resetAndLoad()}>
+						<label for="feed-filter-source" class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Fuente</label>
+						<select id="feed-filter-source" class="input" bind:value={sourceRef} on:change={() => void resetAndLoad()}>
 							<option value="">Todas</option>
 							{#each sources as src}
 								<option value={src.id}>{src.name}</option>
@@ -262,8 +286,8 @@
 						</select>
 					</div>
 					<div>
-						<label class="mb-1 block text-[11px] font-medium" style="color: var(--flux-text-muted);">Estado</label>
-						<select class="input w-full" bind:value={status} on:change={() => void resetAndLoad()}>
+						<label for="feed-filter-status" class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Estado</label>
+						<select id="feed-filter-status" class="input" bind:value={status} on:change={() => void resetAndLoad()}>
 							<option value="">Todos</option>
 							<option value="pending">Pending</option>
 							<option value="processed">Processed</option>
@@ -272,16 +296,16 @@
 						</select>
 					</div>
 					<div>
-						<label class="mb-1 block text-[11px] font-medium" style="color: var(--flux-text-muted);">Desde</label>
-						<input type="date" class="input w-full" bind:value={fromDate} on:change={() => void resetAndLoad()} />
+						<label for="feed-filter-from" class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Desde</label>
+						<input id="feed-filter-from" type="date" class="input" bind:value={fromDate} on:change={() => void resetAndLoad()} />
 					</div>
 					<div>
-						<label class="mb-1 block text-[11px] font-medium" style="color: var(--flux-text-muted);">Hasta</label>
-						<input type="date" class="input w-full" bind:value={toDate} on:change={() => void resetAndLoad()} />
+						<label for="feed-filter-to" class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Hasta</label>
+						<input id="feed-filter-to" type="date" class="input" bind:value={toDate} on:change={() => void resetAndLoad()} />
 					</div>
 				</div>
 
-				<label class="inline-flex cursor-pointer items-center gap-2 text-xs" style="color: var(--flux-text-soft);">
+				<label class="mt-4 inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-600">
 					<input type="checkbox" bind:checked={likedOnly} on:change={() => void resetAndLoad()} />
 					Solo artículos con like
 				</label>
@@ -289,101 +313,88 @@
 		{/if}
 	</div>
 
-	<!-- Error -->
 	{#if error}
-		<div class="glass-elevated p-4" style="border-color: rgba(248,113,113,0.2); background: rgba(248,113,113,0.05);">
-			<p class="text-sm" style="color: #fca5a5;">{error}</p>
-		</div>
+		<div class="alert error">{error}</div>
 	{/if}
 
-	<!-- Loading -->
 	{#if loading}
-		<div class="glass-subtle p-6 text-center">
-			<div class="loading-pulse text-sm" style="color: var(--flux-text-muted);">Cargando artículos...</div>
+		<div class="panel surface-pad text-center">
+			<span class="loading-pulse text-sm text-slate-500">Cargando artículos...</span>
 		</div>
 	{:else if articles.length === 0}
-		<div class="glass-subtle p-8 text-center">
-			<p class="text-sm" style="color: var(--flux-text-muted);">No se encontraron artículos con estos filtros.</p>
-		</div>
+		<div class="empty-state">No se encontraron artículos con estos filtros.</div>
 	{:else}
-		<!-- Articles -->
-		<div class="space-y-3">
+		<div class="news-grid">
 			{#each articles as article (article.id)}
 				{@const source = sourceBadge(article.source_type)}
-				<div class="glass-elevated p-4 sm:p-5">
-					<!-- Top row -->
-					<div class="flex flex-wrap items-center gap-2">
+				<article class="news-card" in:fly={{ y: 12, duration: 320 }}>
+					<div class="news-card__top">
 						<span class="badge {source.className}">{source.icon} {source.label}</span>
 						<span class="badge {sectionColor(article.section?.name)}">{article.section?.display_name ?? 'Sin sección'}</span>
-						<span class="text-[11px]" style="color: var(--flux-text-muted);">
+						<span class="text-xs font-semibold text-slate-500">
 							{formatRelativeTime(article.published_at ?? article.ingested_at)}
 						</span>
-						<span class="hidden text-[11px] sm:inline" style="color: var(--flux-text-muted);">
-							{formatDateTime(article.ingested_at)}
-						</span>
+						<span class="text-xs font-medium text-slate-400">{formatDateTime(article.ingested_at)}</span>
 					</div>
 
-					<!-- Title -->
-					<h2 class="mt-2.5 text-[15px] font-semibold leading-snug" style="color: var(--flux-text);">
-						<a href={article.url} target="_blank" rel="noreferrer" class="hover:underline decoration-cyan-400/40 underline-offset-2">{article.title}</a>
+					<h2 class="news-card__title">
+						<a href={article.url} target="_blank" rel="noreferrer">{article.title}</a>
 					</h2>
 
-					<!-- Summary -->
 					{#if article.summary}
-						<p class="mt-2 text-sm leading-relaxed" style="color: var(--flux-text-soft);">{article.summary}</p>
+						<p class="news-card__summary">{article.summary}</p>
 					{/if}
 
-					<!-- Relevance bar -->
-					<div class="mt-3">
-						<div class="mb-1 flex items-center justify-between text-[11px]" style="color: var(--flux-text-muted);">
-							<span>Relevance</span>
-							<span class="font-mono">{article.relevance_score?.toFixed(3) ?? '—'}</span>
+					<div class="news-card__footer">
+						<div class="news-card__relevance">
+							<div class="mb-1 flex items-center justify-between text-[11px] font-semibold text-slate-500">
+								<span>Relevancia</span>
+								<span class="font-mono">{article.relevance_score?.toFixed(3) ?? '—'}</span>
+							</div>
+							<div class="relevance-track">
+								<div class="relevance-fill" style="width: {relevanceWidth(article.relevance_score)}"></div>
+							</div>
 						</div>
-						<div class="relevance-track">
-							<div class="relevance-fill" style="width: {relevanceWidth(article.relevance_score)}"></div>
-						</div>
-					</div>
 
-					<!-- Feedback -->
-					<div class="mt-3.5 flex flex-wrap gap-2">
-						<button
-							type="button"
-							class="feedback-btn {article.feedback.liked ? 'liked' : ''}"
-							on:click={() => onFeedback(article, 'like')}
-						>
-							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
-							{article.feedback.likes}
-						</button>
-						<button
-							type="button"
-							class="feedback-btn {article.feedback.disliked ? 'disliked' : ''}"
-							on:click={() => onFeedback(article, 'dislike')}
-						>
-							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/></svg>
-							{article.feedback.dislikes}
-						</button>
-						<button
-							type="button"
-							class="feedback-btn {article.feedback.saved ? 'saved' : ''}"
-							on:click={() => onFeedback(article, 'save')}
-						>
-							<svg width="14" height="14" viewBox="0 0 24 24" fill="{article.feedback.saved ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
-							{article.feedback.saves}
-						</button>
+						<div class="feedback-row">
+							<button
+								type="button"
+								class="feedback-btn {article.feedback.liked ? 'liked' : ''}"
+								on:click={() => onFeedback(article, 'like')}
+							>
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+								{article.feedback.likes}
+							</button>
+							<button
+								type="button"
+								class="feedback-btn {article.feedback.disliked ? 'disliked' : ''}"
+								on:click={() => onFeedback(article, 'dislike')}
+							>
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/></svg>
+								{article.feedback.dislikes}
+							</button>
+							<button
+								type="button"
+								class="feedback-btn {article.feedback.saved ? 'saved' : ''}"
+								on:click={() => onFeedback(article, 'save')}
+							>
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="{article.feedback.saved ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+								{article.feedback.saves}
+							</button>
+						</div>
 					</div>
-				</div>
+				</article>
 			{/each}
 		</div>
 	{/if}
 
-	<!-- Infinite scroll sentinel -->
 	<div bind:this={sentinel} class="h-6"></div>
 	{#if loadingMore}
-		<div class="py-4 text-center">
-			<span class="loading-pulse text-xs" style="color: var(--flux-text-muted);">Cargando más...</span>
+		<div class="py-3 text-center">
+			<span class="loading-pulse text-xs font-semibold uppercase tracking-wide text-slate-500">Cargando más...</span>
 		</div>
 	{:else if !hasMore && articles.length > 0}
-		<div class="py-4 text-center text-xs" style="color: var(--flux-text-muted);">
+		<div class="py-2 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
 			Fin del feed · {articles.length} artículos
 		</div>
 	{/if}

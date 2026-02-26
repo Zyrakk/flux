@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { fly } from 'svelte/transition';
 	import { apiJSON } from '$lib/api';
 	import { formatRelativeTime } from '$lib/format';
 	import type { Section, Source } from '$lib/types';
@@ -197,33 +198,30 @@
 	}
 </script>
 
-<section class="space-y-5 animate-fade-up">
-	<!-- Header -->
-	<div class="glass-elevated p-5">
-		<h1 class="text-xl font-semibold tracking-tight" style="color: var(--flux-text);">Admin</h1>
-		<p class="mt-0.5 text-xs" style="color: var(--flux-text-muted);">Fuentes, secciones y configuración del briefing.</p>
+<section class="briefing-page animate-fade-up">
+	<div class="briefing-hero">
+		<h1 class="briefing-hero__title">Panel de Administración</h1>
+		<p class="mt-2 max-w-2xl text-sm text-slate-600">
+			Gestiona fuentes RSS, secciones y reglas de briefing desde una vista centralizada.
+		</p>
 	</div>
 
-	<!-- Error -->
 	{#if error}
-		<div class="glass-elevated p-4" style="border-color: rgba(248,113,113,0.2); background: rgba(248,113,113,0.05);">
-			<p class="text-sm" style="color: #fca5a5;">{error}</p>
-		</div>
+		<div class="alert error">{error}</div>
 	{/if}
 
-	<!-- Sources table -->
-	<div class="glass-elevated overflow-hidden">
-		<div class="flex items-center justify-between p-5 pb-3">
-			<h2 class="text-base font-semibold" style="color: var(--flux-text);">Fuentes</h2>
-			<span class="text-[11px] font-mono" style="color: var(--flux-text-muted);">{sources.length} configuradas</span>
+	<div class="panel overflow-hidden" in:fly={{ y: 12, duration: 300 }}>
+		<div class="flex items-center justify-between px-5 pb-3 pt-5">
+			<h2 class="text-base font-extrabold text-slate-900">Fuentes</h2>
+			<span class="text-xs font-bold uppercase tracking-wide text-slate-500">{sources.length} configuradas</span>
 		</div>
 
 		{#if loading}
-			<div class="p-5 text-center">
-				<span class="loading-pulse text-sm" style="color: var(--flux-text-muted);">Cargando fuentes...</span>
+			<div class="px-5 pb-5 text-center">
+				<span class="loading-pulse text-sm text-slate-500">Cargando fuentes...</span>
 			</div>
 		{:else}
-			<div class="overflow-x-auto">
+			<div class="overflow-x-auto px-3 pb-3">
 				<table class="glass-table">
 					<thead>
 						<tr>
@@ -242,40 +240,33 @@
 							<tr>
 								<td><span class="status-dot {state.dot}"></span></td>
 								<td>
-									<div class="font-medium" style="color: var(--flux-text);">{source.name}</div>
+									<div class="font-semibold text-slate-900">{source.name}</div>
 									{#if source.last_error}
-										<div class="mt-0.5 max-w-[200px] truncate text-[11px]" style="color: var(--flux-text-muted);" title={source.last_error}>
+										<div class="mt-1 max-w-[240px] truncate text-[11px] text-slate-500" title={source.last_error}>
 											{source.last_error}
 										</div>
 									{/if}
 								</td>
 								<td>
-									<span class="badge" style="background: rgba(255,255,255,0.03);">{source.source_type.toUpperCase()}</span>
+									<span class="badge">{source.source_type.toUpperCase()}</span>
 								</td>
-								<td class="hidden sm:table-cell">
-									<span class="text-xs" style="color: var(--flux-text-soft);">
-										{source.sections.map((s) => s.display_name).join(', ') || '—'}
-									</span>
+								<td class="hidden sm:table-cell text-xs">
+									{source.sections.map((s) => s.display_name).join(', ') || '—'}
 								</td>
-								<td class="hidden md:table-cell">
-									<span class="text-xs" style="color: var(--flux-text-muted);">
-										{formatRelativeTime(source.last_fetched_at)}
-									</span>
+								<td class="hidden md:table-cell text-xs text-slate-500">
+									{formatRelativeTime(source.last_fetched_at)}
 								</td>
 								<td class="hidden lg:table-cell">
-									<div class="text-[11px] leading-tight" style="color: var(--flux-text-muted);">
+									<div class="text-[11px] leading-tight text-slate-500">
 										<span>Total: {source.stats.total_ingested}</span>
-										<span class="mx-1">·</span>
+										<span class="mx-1">•</span>
 										<span>24h: {source.stats.last_24h}</span>
-										<span class="mx-1">·</span>
+										<span class="mx-1">•</span>
 										<span>{source.stats.pass_rate_pct.toFixed(1)}%</span>
 									</div>
 								</td>
 								<td class="text-right">
-									<button
-										class="btn-ghost text-[11px] !px-2.5 !py-1"
-										on:click={() => toggleSource(source)}
-									>
+									<button class="btn-ghost !px-3 !py-1.5 !text-[11px]" on:click={() => toggleSource(source)}>
 										{source.enabled ? 'Deshabilitar' : 'Habilitar'}
 									</button>
 								</td>
@@ -287,17 +278,15 @@
 		{/if}
 	</div>
 
-	<!-- Create section: 2-col grid -->
-	<div class="grid gap-5 lg:grid-cols-2">
-		<!-- Add source -->
-		<div class="glass-elevated p-5">
-			<h2 class="text-base font-semibold" style="color: var(--flux-text);">Añadir Fuente RSS</h2>
+	<div class="grid gap-4 lg:grid-cols-2">
+		<div class="panel surface-pad" in:fly={{ y: 14, duration: 320, delay: 40 }}>
+			<h2 class="text-base font-extrabold text-slate-900">Añadir Fuente RSS</h2>
 			<div class="mt-4 space-y-3">
-				<input class="input w-full" placeholder="Nombre" bind:value={newSourceName} />
-				<input class="input w-full" placeholder="URL RSS" bind:value={newSourceURL} />
+				<input class="input" placeholder="Nombre" bind:value={newSourceName} />
+				<input class="input" placeholder="URL RSS" bind:value={newSourceURL} />
 
 				<div>
-					<div class="mb-1.5 text-[11px] font-medium" style="color: var(--flux-text-muted);">Secciones</div>
+					<div class="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Secciones</div>
 					<div class="flex flex-wrap gap-1.5">
 						{#each sections as section}
 							<label class="tab-pill cursor-pointer {newSourceSectionIDs.includes(section.id) ? 'active' : ''}">
@@ -319,14 +308,13 @@
 			</div>
 		</div>
 
-		<!-- Create section -->
-		<div class="glass-elevated p-5">
-			<h2 class="text-base font-semibold" style="color: var(--flux-text);">Crear Sección</h2>
+		<div class="panel surface-pad" in:fly={{ y: 14, duration: 320, delay: 80 }}>
+			<h2 class="text-base font-extrabold text-slate-900">Crear Sección</h2>
 			<div class="mt-4 space-y-3">
-				<input class="input w-full" placeholder="name (slug)" bind:value={newSectionName} />
-				<input class="input w-full" placeholder="display_name (ej: 🧪 AI)" bind:value={newSectionDisplayName} />
+				<input class="input" placeholder="name (slug)" bind:value={newSectionName} />
+				<input class="input" placeholder="display_name (ej: Seguridad)" bind:value={newSectionDisplayName} />
 				<textarea
-					class="input w-full"
+					class="input"
 					rows="3"
 					placeholder="seed keywords separadas por coma"
 					bind:value={newSectionKeywords}
@@ -336,35 +324,38 @@
 		</div>
 	</div>
 
-	<!-- Section management -->
-	<div class="glass-elevated p-5">
-		<h2 class="text-base font-semibold" style="color: var(--flux-text);">Gestión de Secciones</h2>
-		<p class="mt-0.5 text-xs" style="color: var(--flux-text-muted);">Arrastra para reordenar · activa/desactiva · ajusta máx. artículos por briefing.</p>
+	<div class="panel surface-pad" in:fly={{ y: 16, duration: 340, delay: 120 }}>
+		<div class="flex flex-wrap items-end justify-between gap-3">
+			<div>
+				<h2 class="text-base font-extrabold text-slate-900">Gestión de Secciones</h2>
+				<p class="mt-1 text-sm text-slate-600">
+					Arrastra para reordenar, activa o desactiva y ajusta el máximo por briefing.
+				</p>
+			</div>
+		</div>
 
 		<div class="mt-4 space-y-2">
 			{#each sections as section (section.id)}
 				<div
-					class="glass-subtle draggable-section rounded-xl p-3.5 transition-all duration-200"
+					class="panel-subtle draggable-section rounded-2xl p-3 transition-all duration-200"
 					draggable="true"
 					role="listitem"
 					on:dragstart={() => onDragStart(section.id)}
 					on:dragover|preventDefault
 					on:drop={() => onDrop(section.id)}
+					in:fly={{ y: 8, duration: 220 }}
 				>
 					<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 						<div class="flex items-center gap-3">
-							<!-- Drag handle icon -->
-							<span class="text-sm" style="color: var(--flux-text-muted); cursor: grab;">⠿</span>
+							<span class="text-sm text-slate-400">⠿</span>
 							<div>
-								<div class="text-sm font-medium" style="color: var(--flux-text);">{section.display_name}</div>
-								<div class="text-[11px]" style="color: var(--flux-text-muted);">
-									{section.name} · orden: {section.sort_order}
-								</div>
+								<div class="text-sm font-bold text-slate-900">{section.display_name}</div>
+								<div class="text-xs text-slate-500">{section.name} · orden: {section.sort_order}</div>
 							</div>
 						</div>
 
 						<div class="flex flex-wrap items-center gap-2.5">
-							<label class="inline-flex cursor-pointer items-center gap-1.5 text-xs" style="color: var(--flux-text-soft);">
+							<label class="inline-flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-slate-600">
 								<input type="checkbox" checked={section.enabled} on:change={() => toggleSectionEnabled(section)} />
 								Activa
 							</label>
@@ -372,11 +363,11 @@
 							<div class="flex items-center gap-1.5">
 								<input
 									type="number"
-									class="input !w-16 text-center !px-2 !py-1.5 text-xs"
+									class="input !w-20 !px-2 !py-1.5 text-center text-xs"
 									min="1"
 									bind:value={section.max_briefing_articles}
 								/>
-								<button class="btn-ghost text-[11px] !px-2 !py-1" on:click={() => saveSectionMax(section)}>
+								<button class="btn-ghost !px-3 !py-1.5 !text-[11px]" on:click={() => saveSectionMax(section)}>
 									Guardar
 								</button>
 							</div>

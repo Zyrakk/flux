@@ -7,8 +7,8 @@ export default {
 	theme: {
 		extend: {
 			fontFamily: {
-				sans: ['Outfit', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-				mono: ['IBM Plex Mono', 'ui-monospace', 'SFMono-Regular', 'monospace']
+				sans: ['Plus Jakarta Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+				mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace']
 			},
 			colors: {
 				flux: {

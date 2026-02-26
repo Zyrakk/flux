@@ -18,26 +18,21 @@
 	}
 </script>
 
-<div class="flex min-h-[60vh] items-center justify-center">
-	<div class="glass-elevated w-full max-w-sm p-8 animate-fade-up">
-		<!-- Logo -->
+<div class="flex min-h-[70vh] items-center justify-center px-3">
+	<div class="briefing-hero w-full max-w-md animate-fade-up">
 		<div class="mb-6 text-center">
-			<div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl" style="background: linear-gradient(135deg, #06b6d4, #0891b2); box-shadow: 0 4px 20px -4px rgba(6,182,212,0.4);">
-				<span class="font-mono text-lg font-bold text-slate-950">F</span>
-			</div>
-			<h1 class="mt-4 text-lg font-semibold" style="color: var(--flux-text);">Flux</h1>
-			<p class="mt-1 text-xs" style="color: var(--flux-text-muted);">Introduce tu token para acceder</p>
+			<div class="site-brand__mark mx-auto h-14 w-14 text-xl">F</div>
+			<h1 class="mt-4 text-2xl font-extrabold tracking-tight text-slate-900">Flux Access</h1>
+			<p class="mt-2 text-sm text-slate-600">Introduce tu token para acceder al briefing.</p>
 		</div>
 
 		{#if error}
-			<div class="mb-4 rounded-xl p-3 text-center text-sm" style="background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.2); color: #fca5a5;">
-				{error}
-			</div>
+			<div class="alert error mb-4">{error}</div>
 		{/if}
 
 		<div class="space-y-4">
 			<input
-				class="input w-full text-center font-mono tracking-wider"
+				class="input text-center font-mono tracking-wider"
 				type="password"
 				placeholder="Token"
 				bind:value={token}
@@ -45,16 +40,11 @@
 				autocomplete="current-password"
 			/>
 
-			<button
-				class="btn-primary w-full"
-				on:click={login}
-			>
-				Acceder
-			</button>
+			<button class="btn-primary w-full" on:click={login}>Acceder</button>
 		</div>
 
-		<p class="mt-5 text-center text-[11px]" style="color: var(--flux-text-muted);">
-			Deja vacío si usas auth por reverse-proxy.
+		<p class="mt-5 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
+			Puedes dejarlo vacío si usas auth por reverse-proxy.
 		</p>
 	</div>
 </div>

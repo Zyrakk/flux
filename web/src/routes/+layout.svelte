@@ -1,6 +1,7 @@
 <script lang="ts">
 	import '../app.css';
 	import { onMount } from 'svelte';
+	import { fade } from 'svelte/transition';
 	import { afterNavigate, goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { browser } from '$app/environment';
@@ -43,66 +44,46 @@
 	<title>Flux</title>
 </svelte:head>
 
-<div class="flex min-h-screen flex-col">
-	<!-- Header -->
-	<header class="sticky top-0 z-30" style="background: rgba(6, 8, 12, 0.8); backdrop-filter: blur(20px) saturate(1.2); -webkit-backdrop-filter: blur(20px) saturate(1.2); border-bottom: 1px solid rgba(255,255,255,0.05);">
-		<div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
-			<!-- Logo -->
-			<a href="/" class="group flex items-center gap-2.5 no-underline">
-				<div class="flex h-8 w-8 items-center justify-center rounded-lg" style="background: linear-gradient(135deg, #06b6d4, #0891b2); box-shadow: 0 2px 12px -2px rgba(6,182,212,0.4);">
-					<span class="font-mono text-xs font-bold text-slate-950">F</span>
-				</div>
-				<span class="text-sm font-semibold tracking-tight" style="color: var(--flux-text);">Flux</span>
+<div class="site-shell">
+	<header class="site-header">
+		<div class="site-header__inner">
+			<a href="/" class="site-brand">
+				<span class="site-brand__mark">F</span>
+				<span class="site-brand__text">
+					<span class="site-brand__title">Flux Intelligence</span>
+					<span class="site-brand__subtitle">Daily Signal Briefing</span>
+				</span>
 			</a>
 
-			<!-- Nav -->
-			<nav class="flex items-center gap-1">
-				{#each navItems as item}
-					<a
-						href={item.href}
-						class="nav-link rounded-lg px-3 py-1.5 text-xs font-medium no-underline transition-all duration-200 {isActive(item.href, $page.url.pathname) ? 'active' : ''}"
-						style="color: {isActive(item.href, $page.url.pathname) ? '#22d3ee' : 'var(--flux-text-muted)'}; background: {isActive(item.href, $page.url.pathname) ? 'rgba(6,182,212,0.1)' : 'transparent'};"
-					>
-						<span class="mr-1 opacity-60">{item.icon}</span>
-						{item.label}
-					</a>
-				{/each}
+			<div class="flex items-center gap-2">
+				<nav class="site-nav">
+					{#each navItems as item}
+						<a
+							href={item.href}
+							class="site-nav__link {isActive(item.href, $page.url.pathname) ? 'active' : ''}"
+						>
+							<span class="site-nav__link-icon">{item.icon}</span>
+							{item.label}
+						</a>
+					{/each}
+				</nav>
 
 				{#if hasToken}
-					<div style="width:1px; height:16px; background: rgba(255,255,255,0.08); margin: 0 4px;"></div>
-					<button
-						class="rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-all duration-200"
-						style="color: var(--flux-text-muted); background: transparent;"
-						on:mouseenter={(e) => { e.currentTarget.style.color = 'var(--flux-danger)'; e.currentTarget.style.background = 'rgba(248,113,113,0.08)'; }}
-						on:mouseleave={(e) => { e.currentTarget.style.color = 'var(--flux-text-muted)'; e.currentTarget.style.background = 'transparent'; }}
-						on:click={logout}
-					>
+					<button class="btn-ghost !rounded-full !px-3 !py-2 !text-[11px]" on:click={logout}>
 						Salir
 					</button>
 				{/if}
-			</nav>
+			</div>
 		</div>
 	</header>
 
-	<!-- Main -->
-	<main class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6">
-		<slot />
+	<main class="site-main">
+		{#key $page.url.pathname}
+			<div class="route-stage" in:fade={{ duration: 260 }} out:fade={{ duration: 140 }}>
+				<slot />
+			</div>
+		{/key}
 	</main>
 
-	<!-- Footer -->
-	<footer class="py-4 text-center text-[11px]" style="color: var(--flux-text-muted);">
-		Flux · read less, read better
-	</footer>
+	<footer class="site-footer">Flux · read less, know more</footer>
 </div>
-
-<style>
-	.nav-link:hover {
-		color: var(--flux-text) !important;
-		background: rgba(255, 255, 255, 0.04) !important;
-	}
-
-	.nav-link.active:hover {
-		color: #22d3ee !important;
-		background: rgba(6, 182, 212, 0.15) !important;
-	}
-</style>
