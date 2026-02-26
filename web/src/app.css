@@ -38,18 +38,10 @@
 	--flux-radius-lg: 26px;
 	--flux-ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
 
-	--ambient-x: 50%;
-	--ambient-y: 35%;
-	--ambient-shift-x: 0px;
-	--ambient-shift-y: 0px;
-	--ambient-scroll: 0;
-	--ambient-scroll-px: 0px;
-	--ambient-scroll-wave: 0;
-	--ambient-intensity: 1.08;
-	--ambient-energy: 0;
-	--ambient-depth: 1;
-	--ambient-tilt-x: 0deg;
-	--ambient-tilt-y: 0deg;
+	--spot-x: 50%;
+	--spot-y: 38%;
+	--spot-radius: 220px;
+	--glyph-scroll: 0px;
 }
 
 * {
@@ -114,157 +106,96 @@ a:hover {
 	z-index: 0;
 }
 
-.ambient-stage {
+.glyph-stage {
 	position: fixed;
-	inset: -18vh -16vw;
+	inset: 0;
 	z-index: -1;
 	pointer-events: none;
 	overflow: hidden;
-	transform:
-		perspective(1650px)
-		rotateX(var(--ambient-tilt-x))
-		rotateY(var(--ambient-tilt-y))
-		scale(calc(1 + (var(--ambient-depth) - 1) * 0.42));
-	filter: saturate(calc(1 + (var(--ambient-energy) * 0.22)));
-	transition: transform 0.22s var(--flux-ease-smooth), filter 0.22s var(--flux-ease-smooth);
+	background:
+		radial-gradient(circle at 8% 14%, rgba(10, 132, 255, 0.18), transparent 44%),
+		radial-gradient(circle at 94% 4%, rgba(16, 185, 129, 0.12), transparent 42%),
+		linear-gradient(180deg, #f7faff 0%, #eef3fb 55%, #e8edf6 100%);
 }
 
-.ambient-layer {
+.glyph-grid {
+	position: absolute;
+	inset: -18vh -12vw;
+	background-image: url('/glyph-pattern.svg');
+	background-size: 560px 560px;
+	background-repeat: repeat;
+	will-change: transform, opacity, filter;
+	animation: glyph-drift 34s linear infinite;
+	transform: translate3d(0, calc(var(--glyph-scroll) * -0.08), 0);
+	transition: transform 180ms var(--flux-ease-smooth), opacity 180ms var(--flux-ease-smooth), filter 180ms var(--flux-ease-smooth);
+}
+
+.glyph-grid--base {
+	opacity: 0.17;
+	filter: blur(0.18px) saturate(1.06);
+}
+
+.glyph-grid--glow {
+	opacity: 0.78;
+	filter: saturate(1.2) brightness(1.12);
+	mix-blend-mode: screen;
+	animation-duration: 22s;
+	animation-direction: reverse;
+	transform: translate3d(0, calc(var(--glyph-scroll) * -0.14), 0);
+	-webkit-mask-image: radial-gradient(
+		circle var(--spot-radius) at var(--spot-x) var(--spot-y),
+		rgba(0, 0, 0, 1) 0%,
+		rgba(0, 0, 0, 0.82) 45%,
+		rgba(0, 0, 0, 0.22) 72%,
+		transparent 100%
+	);
+	mask-image: radial-gradient(
+		circle var(--spot-radius) at var(--spot-x) var(--spot-y),
+		rgba(0, 0, 0, 1) 0%,
+		rgba(0, 0, 0, 0.82) 45%,
+		rgba(0, 0, 0, 0.22) 72%,
+		transparent 100%
+	);
+}
+
+.glyph-spot {
 	position: absolute;
 	inset: 0;
-	transform-origin: center;
-	will-change: transform, opacity, filter;
-	transition: transform 0.28s var(--flux-ease-smooth), opacity 0.28s var(--flux-ease-smooth), filter 0.28s var(--flux-ease-smooth);
-}
-
-.ambient-layer--base {
 	background:
-		radial-gradient(62% 48% at 8% 12%, rgba(10, 132, 255, 0.28), transparent 72%),
-		radial-gradient(48% 40% at 96% 5%, rgba(20, 184, 166, 0.25), transparent 72%),
-		radial-gradient(48% 36% at 78% 94%, rgba(245, 158, 11, 0.14), transparent 78%);
-	transform: translate3d(
-		calc(var(--ambient-shift-x) * 0.24),
-		calc((var(--ambient-shift-y) * 0.22) + (var(--ambient-scroll-px) * -0.12)),
-		0
-	);
-	opacity: calc(0.95 + (var(--ambient-energy) * 0.08));
-}
-
-.ambient-layer--pointer {
-	background:
-		radial-gradient(720px 560px at var(--ambient-x) var(--ambient-y), rgba(10, 132, 255, 0.4), transparent 68%),
-		radial-gradient(560px 430px at calc(var(--ambient-x) + 12%) calc(var(--ambient-y) + 8%), rgba(20, 184, 166, 0.3), transparent 70%),
-		radial-gradient(480px 380px at calc(var(--ambient-x) - 11%) calc(var(--ambient-y) - 7%), rgba(56, 189, 248, 0.21), transparent 74%);
-	mix-blend-mode: screen;
-	filter: blur(calc(18px + var(--ambient-energy) * 14px)) saturate(1.18);
-	opacity: calc((0.78 + (var(--ambient-energy) * 0.38)) * var(--ambient-intensity));
-	transform: translate3d(
-		calc(var(--ambient-shift-x) * 0.7),
-		calc((var(--ambient-shift-y) * 0.6) + (var(--ambient-scroll-px) * -0.09)),
-		0
-	);
-}
-
-.ambient-layer--halo {
-	background:
-		radial-gradient(420px 340px at var(--ambient-x) var(--ambient-y), rgba(255, 255, 255, 0.52), transparent 76%),
-		radial-gradient(980px 760px at var(--ambient-x) var(--ambient-y), rgba(10, 132, 255, 0.28), transparent 82%);
-	mix-blend-mode: soft-light;
-	filter: blur(calc(20px + var(--ambient-energy) * 20px));
-	opacity: calc((0.45 + (var(--ambient-energy) * 0.5)) * var(--ambient-intensity));
-	transform: translate3d(
-		calc(var(--ambient-shift-x) * 0.92),
-		calc((var(--ambient-shift-y) * 0.78) + (var(--ambient-scroll-px) * -0.06)),
-		0
-	) scale(calc(1 + var(--ambient-energy) * 0.2));
-}
-
-.ambient-layer--drift {
-	background:
-		conic-gradient(from 280deg at 20% 20%, rgba(10, 132, 255, 0.15), transparent 44%),
-		conic-gradient(from 150deg at 85% 80%, rgba(20, 184, 166, 0.12), transparent 44%),
-		radial-gradient(140% 120% at 52% 48%, rgba(10, 132, 255, 0.1), transparent 66%);
-	background-size: 145% 145%, 138% 138%, 100% 100%;
-	background-position: 0% 0%, 100% 100%, 50% 50%;
-	opacity: calc(0.5 + var(--ambient-energy) * 0.16);
-	animation: ambient-orbit 16s linear infinite;
-	transform: translate3d(
-		calc(var(--ambient-shift-x) * -0.32),
-		calc((var(--ambient-shift-y) * 0.24) + (var(--ambient-scroll-px) * -0.14)),
-		0
-	) rotate(calc((var(--ambient-scroll-wave) - 0.5) * 7deg));
-}
-
-.ambient-layer--ribbons {
-	background:
-		repeating-linear-gradient(
-			110deg,
-			rgba(10, 132, 255, 0.2) 0px,
-			rgba(10, 132, 255, 0.2) 2px,
-			transparent 2px,
-			transparent 26px
+		radial-gradient(
+			circle calc(var(--spot-radius) * 0.84) at var(--spot-x) var(--spot-y),
+			rgba(255, 255, 255, 0.62),
+			rgba(10, 132, 255, 0.18) 52%,
+			transparent 88%
 		),
-		repeating-linear-gradient(
-			-75deg,
-			rgba(20, 184, 166, 0.12) 0px,
-			rgba(20, 184, 166, 0.12) 1px,
-			transparent 1px,
-			transparent 20px
+		radial-gradient(
+			circle calc(var(--spot-radius) * 1.2) at var(--spot-x) var(--spot-y),
+			rgba(10, 132, 255, 0.1),
+			transparent 76%
 		);
+	opacity: 0.66;
 	mix-blend-mode: soft-light;
-	filter: blur(0.8px);
-	opacity: calc(0.18 + var(--ambient-scroll-wave) * 0.16 + var(--ambient-energy) * 0.08);
-	animation: ambient-sweep 11s ease-in-out infinite alternate;
-	transform: translate3d(
-		calc(var(--ambient-shift-x) * -0.2),
-		calc((var(--ambient-scroll-px) * -0.22) + (var(--ambient-shift-y) * 0.12)),
-		0
-	) rotate(-5deg);
+	transition: background-position 160ms linear, opacity 200ms ease;
 }
 
-.ambient-layer--noise {
+.glyph-vignette {
+	position: absolute;
+	inset: 0;
 	background:
-		repeating-linear-gradient(
-			135deg,
-			rgba(255, 255, 255, 0.09) 0px,
-			rgba(255, 255, 255, 0.09) 1px,
-			transparent 1px,
-			transparent 11px
-		);
-	opacity: calc(0.1 + var(--ambient-energy) * 0.05);
-	mix-blend-mode: soft-light;
+		radial-gradient(120% 90% at 50% 42%, transparent 35%, rgba(10, 25, 50, 0.08) 100%),
+		linear-gradient(180deg, transparent 0%, rgba(10, 25, 50, 0.04) 100%);
+	opacity: 0.5;
 }
 
-.ambient-static {
-	--ambient-intensity: 0;
-	--ambient-energy: 0;
-	--ambient-depth: 1;
-	--ambient-shift-x: 0px;
-	--ambient-shift-y: 0px;
-	--ambient-tilt-x: 0deg;
-	--ambient-tilt-y: 0deg;
-}
-
-.ambient-static .ambient-stage {
+.glyph-static .glyph-grid {
+	animation: none;
 	transform: none;
-	filter: none;
 }
 
-.ambient-static .ambient-layer--pointer,
-.ambient-static .ambient-layer--halo {
+.glyph-static .glyph-grid--glow,
+.glyph-static .glyph-spot {
 	opacity: 0;
 }
-
-.ambient-static .ambient-layer--drift {
-	opacity: 0.25;
-	animation: none;
-}
-
-.ambient-static .ambient-layer--ribbons {
-	opacity: 0.08;
-	animation: none;
-}
-
 .site-header {
 	position: sticky;
 	top: 0;
@@ -1008,24 +939,12 @@ textarea.input:focus {
 	}
 }
 
-@keyframes ambient-orbit {
+@keyframes glyph-drift {
 	0% {
-		background-position: 0% 0%, 100% 100%, 50% 50%;
-	}
-	50% {
-		background-position: 34% 18%, 60% 70%, 52% 46%;
+		background-position: 0 0;
 	}
 	100% {
-		background-position: 0% 0%, 100% 100%, 50% 50%;
-	}
-}
-
-@keyframes ambient-sweep {
-	0% {
-		background-position: 0% 0%, 0% 0%;
-	}
-	100% {
-		background-position: 120px -180px, -160px 180px;
+		background-position: 160px -220px;
 	}
 }
 
@@ -1083,17 +1002,12 @@ textarea.input:focus {
 		border-radius: 22px;
 	}
 
-	.ambient-layer--pointer {
-		opacity: calc(0.62 * var(--ambient-intensity));
-		filter: blur(16px);
+	.glyph-grid {
+		background-size: 520px 520px;
 	}
 
-	.ambient-layer--halo {
-		opacity: calc(0.4 * var(--ambient-intensity));
-	}
-
-	.ambient-layer--ribbons {
-		opacity: 0.2;
+	.glyph-grid--glow {
+		opacity: 0.62;
 	}
 }
 
@@ -1116,25 +1030,13 @@ textarea.input:focus {
 		padding: 0.95rem;
 	}
 
-	.ambient-stage {
-		inset: -22vh -24vw;
+	.glyph-grid {
+		inset: -16vh -18vw;
+		background-size: 460px 460px;
 	}
 
-	.ambient-layer--pointer {
-		opacity: calc(0.42 * var(--ambient-intensity));
-		filter: blur(18px);
-	}
-
-	.ambient-layer--halo {
-		opacity: calc(0.24 * var(--ambient-intensity));
-	}
-
-	.ambient-layer--drift {
-		opacity: 0.26;
-	}
-
-	.ambient-layer--ribbons {
-		opacity: 0.12;
+	.glyph-grid--glow {
+		opacity: 0.44;
 	}
 }
 
@@ -1148,15 +1050,13 @@ textarea.input:focus {
 		scroll-behavior: auto !important;
 	}
 
-	.ambient-stage {
+	.glyph-grid {
+		animation: none !important;
 		transform: none !important;
-		filter: none !important;
 	}
 
-	.ambient-layer--pointer,
-	.ambient-layer--halo,
-	.ambient-layer--drift,
-	.ambient-layer--ribbons {
+	.glyph-grid--glow,
+	.glyph-spot {
 		opacity: 0 !important;
 	}
 }

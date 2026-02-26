@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="560" viewBox="0 0 560 560" fill="none">
+  <rect width="560" height="560" fill="none"/>
+  <g font-family="'Noto Sans JP','Hiragino Kaku Gothic ProN','Yu Gothic','Meiryo',sans-serif" font-size="26" letter-spacing="2" fill="#133b74" fill-opacity="0.86">
+    <text x="20" y="52">ア イ ウ エ オ カ キ ク ケ コ サ シ ス セ ソ</text>
+    <text x="40" y="112">タ チ ツ テ ト ナ ニ ヌ ネ ノ ハ ヒ フ ヘ ホ</text>
+    <text x="16" y="172">マ ミ ム メ モ ヤ ユ ヨ ラ リ ル レ ロ ワ ヲ</text>
+    <text x="48" y="232">ン ア イ ウ エ オ カ キ ク ケ コ サ シ ス セ</text>
+    <text x="18" y="292">ソ タ チ ツ テ ト ナ ニ ヌ ネ ノ ハ ヒ フ ヘ</text>
+    <text x="42" y="352">ホ マ ミ ム メ モ ヤ ユ ヨ ラ リ ル レ ロ ワ</text>
+    <text x="14" y="412">ヲ ン ア イ ウ エ オ カ キ ク ケ コ サ シ ス</text>
+    <text x="44" y="472">セ ソ タ チ ツ テ ト ナ ニ ヌ ネ ノ ハ ヒ フ</text>
+    <text x="20" y="532">ヘ ホ マ ミ ム メ モ ヤ ユ ヨ ラ リ ル レ ロ</text>
+  </g>
+  <g font-family="'Noto Sans JP','Hiragino Kaku Gothic ProN','Yu Gothic','Meiryo',sans-serif" font-size="20" letter-spacing="4" fill="#3e8bff" fill-opacity="0.28">
+    <text x="26" y="84">カ タ ナ サ マ ラ</text>
+    <text x="370" y="148">ア イ ウ エ オ</text>
+    <text x="48" y="260">ツ テ ト ナ ニ</text>
+    <text x="344" y="324">ヤ ユ ヨ ワ ヲ</text>
+    <text x="34" y="440">ル レ ロ ン ア</text>
+    <text x="356" y="506">シ ス セ ソ タ</text>
+  </g>
+</svg>
