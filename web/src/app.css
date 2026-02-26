@@ -37,6 +37,13 @@
 	--flux-radius-md: 18px;
 	--flux-radius-lg: 26px;
 	--flux-ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+
+	--ambient-x: 50%;
+	--ambient-y: 35%;
+	--ambient-shift-x: 0px;
+	--ambient-shift-y: 0px;
+	--ambient-scroll: 0;
+	--ambient-intensity: 1;
 }
 
 * {
@@ -55,9 +62,7 @@ body {
 
 body {
 	background-image:
-		radial-gradient(1200px circle at 5% -10%, rgba(10, 132, 255, 0.2), transparent 45%),
-		radial-gradient(950px circle at 100% 0%, rgba(20, 184, 166, 0.16), transparent 38%),
-		radial-gradient(1100px circle at 65% 120%, rgba(245, 158, 11, 0.12), transparent 40%),
+		radial-gradient(900px circle at 100% 100%, rgba(10, 132, 255, 0.06), transparent 58%),
 		linear-gradient(180deg, #f9fbff 0%, #eef2f8 48%, #e9edf5 100%);
 	background-attachment: fixed;
 }
@@ -100,17 +105,86 @@ a:hover {
 	position: relative;
 	isolation: isolate;
 	min-height: 100vh;
+	z-index: 0;
 }
 
-.site-shell::before {
-	content: '';
+.ambient-stage {
 	position: fixed;
-	inset: 0;
+	inset: -12vh -10vw;
 	z-index: -1;
 	pointer-events: none;
+	overflow: hidden;
+}
+
+.ambient-layer {
+	position: absolute;
+	inset: 0;
+	transform-origin: center;
+	transition: transform 0.35s var(--flux-ease-smooth), opacity 0.35s var(--flux-ease-smooth);
+}
+
+.ambient-layer--base {
 	background:
-		radial-gradient(500px circle at 15% 35%, rgba(10, 132, 255, 0.13), transparent 60%),
-		radial-gradient(420px circle at 88% 75%, rgba(20, 184, 166, 0.11), transparent 64%);
+		radial-gradient(58% 42% at 8% 12%, rgba(10, 132, 255, 0.22), transparent 74%),
+		radial-gradient(44% 36% at 96% 5%, rgba(20, 184, 166, 0.2), transparent 74%),
+		radial-gradient(48% 38% at 78% 94%, rgba(245, 158, 11, 0.11), transparent 78%);
+	transform: translate3d(
+		calc(var(--ambient-shift-x) * 0.16),
+		calc((var(--ambient-shift-y) * 0.12) + (var(--ambient-scroll) * -24px)),
+		0
+	);
+	opacity: 0.95;
+}
+
+.ambient-layer--pointer {
+	background:
+		radial-gradient(560px 450px at var(--ambient-x) var(--ambient-y), rgba(10, 132, 255, 0.24), transparent 70%),
+		radial-gradient(430px 360px at calc(var(--ambient-x) + 10%) calc(var(--ambient-y) + 6%), rgba(20, 184, 166, 0.17), transparent 72%);
+	mix-blend-mode: screen;
+	filter: blur(12px) saturate(1.06);
+	opacity: calc(0.62 * var(--ambient-intensity));
+	transform: translate3d(
+		calc(var(--ambient-shift-x) * 0.34),
+		calc((var(--ambient-shift-y) * 0.28) + (var(--ambient-scroll) * -10px)),
+		0
+	);
+}
+
+.ambient-layer--drift {
+	background:
+		conic-gradient(from 280deg at 20% 20%, rgba(10, 132, 255, 0.11), transparent 48%),
+		conic-gradient(from 150deg at 85% 80%, rgba(20, 184, 166, 0.09), transparent 46%);
+	opacity: 0.5;
+	animation: ambient-orbit 26s linear infinite;
+	transform: translate3d(calc(var(--ambient-shift-x) * -0.12), calc(var(--ambient-shift-y) * 0.1), 0);
+}
+
+.ambient-layer--noise {
+	background:
+		repeating-linear-gradient(
+			135deg,
+			rgba(255, 255, 255, 0.08) 0px,
+			rgba(255, 255, 255, 0.08) 1px,
+			transparent 1px,
+			transparent 14px
+		);
+	opacity: 0.12;
+	mix-blend-mode: soft-light;
+}
+
+.ambient-static {
+	--ambient-intensity: 0;
+	--ambient-shift-x: 0px;
+	--ambient-shift-y: 0px;
+}
+
+.ambient-static .ambient-layer--pointer {
+	opacity: 0;
+}
+
+.ambient-static .ambient-layer--drift {
+	opacity: 0.2;
+	animation: none;
 }
 
 .site-header {
@@ -856,6 +930,18 @@ textarea.input:focus {
 	}
 }
 
+@keyframes ambient-orbit {
+	0% {
+		transform: translate3d(-1%, -2%, 0) rotate(0deg);
+	}
+	50% {
+		transform: translate3d(2%, 2%, 0) rotate(10deg);
+	}
+	100% {
+		transform: translate3d(-1%, -2%, 0) rotate(0deg);
+	}
+}
+
 @keyframes aurora-drift {
 	0% {
 		transform: translate3d(-4%, -2%, 0) rotate(0deg);
@@ -909,6 +995,11 @@ textarea.input:focus {
 	.briefing-hero {
 		border-radius: 22px;
 	}
+
+	.ambient-layer--pointer {
+		opacity: calc(0.42 * var(--ambient-intensity));
+		filter: blur(16px);
+	}
 }
 
 @media (max-width: 640px) {
@@ -929,6 +1020,14 @@ textarea.input:focus {
 	.news-card {
 		padding: 0.95rem;
 	}
+
+	.ambient-layer--pointer {
+		opacity: calc(0.25 * var(--ambient-intensity));
+	}
+
+	.ambient-layer--drift {
+		opacity: 0.26;
+	}
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -939,5 +1038,10 @@ textarea.input:focus {
 		animation-iteration-count: 1 !important;
 		transition-duration: 1ms !important;
 		scroll-behavior: auto !important;
+	}
+
+	.ambient-layer--pointer,
+	.ambient-layer--drift {
+		opacity: 0 !important;
 	}
 }

@@ -9,11 +9,159 @@
 
 	let hasToken = false;
 
+	function setAmbientVariable(name: string, value: string): void {
+		document.documentElement.style.setProperty(name, value);
+	}
+
+	function setAmbientDefaults(): void {
+		setAmbientVariable('--ambient-x', '50%');
+		setAmbientVariable('--ambient-y', '35%');
+		setAmbientVariable('--ambient-shift-x', '0px');
+		setAmbientVariable('--ambient-shift-y', '0px');
+		setAmbientVariable('--ambient-scroll', '0');
+	}
+
+	function addMediaQueryListener(query: MediaQueryList, handler: () => void): () => void {
+		if (typeof query.addEventListener === 'function') {
+			query.addEventListener('change', handler);
+			return () => query.removeEventListener('change', handler);
+		}
+		query.addListener(handler);
+		return () => query.removeListener(handler);
+	}
+
+	function setupAmbientMotion(): () => void {
+		const root = document.documentElement;
+		const reduceMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+		const coarsePointerQuery = window.matchMedia('(pointer: coarse)');
+		const clamp = (value: number, min: number, max: number): number => Math.min(Math.max(value, min), max);
+		const disabled = (): boolean => reduceMotionQuery.matches || coarsePointerQuery.matches;
+
+		let pointerRAF = 0;
+		let scrollRAF = 0;
+		let currentX = window.innerWidth * 0.5;
+		let currentY = window.innerHeight * 0.35;
+		let targetX = currentX;
+		let targetY = currentY;
+
+		function updateMode(): void {
+			root.classList.toggle('ambient-static', disabled());
+		}
+
+		function updateScrollProgress(): void {
+			const maxScroll = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
+			const progress = clamp(window.scrollY / maxScroll, 0, 1);
+			setAmbientVariable('--ambient-scroll', progress.toFixed(4));
+		}
+
+		function applyPointerPosition(): void {
+			const xPercent = clamp((currentX / Math.max(window.innerWidth, 1)) * 100, 0, 100);
+			const yPercent = clamp((currentY / Math.max(window.innerHeight, 1)) * 100, 0, 100);
+			const shiftX = ((xPercent - 50) / 50) * 24;
+			const shiftY = ((yPercent - 50) / 50) * 18;
+			setAmbientVariable('--ambient-x', `${xPercent.toFixed(2)}%`);
+			setAmbientVariable('--ambient-y', `${yPercent.toFixed(2)}%`);
+			setAmbientVariable('--ambient-shift-x', `${shiftX.toFixed(2)}px`);
+			setAmbientVariable('--ambient-shift-y', `${shiftY.toFixed(2)}px`);
+		}
+
+		function animatePointer(): void {
+			const deltaX = targetX - currentX;
+			const deltaY = targetY - currentY;
+			currentX += deltaX * 0.08;
+			currentY += deltaY * 0.08;
+			applyPointerPosition();
+
+			if (Math.abs(deltaX) + Math.abs(deltaY) > 0.4) {
+				pointerRAF = window.requestAnimationFrame(animatePointer);
+				return;
+			}
+			pointerRAF = 0;
+		}
+
+		function onPointerMove(event: PointerEvent): void {
+			if (disabled()) return;
+			targetX = event.clientX;
+			targetY = event.clientY;
+			if (!pointerRAF) {
+				pointerRAF = window.requestAnimationFrame(animatePointer);
+			}
+		}
+
+		function onScroll(): void {
+			if (scrollRAF) return;
+			scrollRAF = window.requestAnimationFrame(() => {
+				scrollRAF = 0;
+				updateScrollProgress();
+			});
+		}
+
+		function onResize(): void {
+			updateScrollProgress();
+			if (disabled()) return;
+			targetX = clamp(targetX, 0, window.innerWidth);
+			targetY = clamp(targetY, 0, window.innerHeight);
+			if (!pointerRAF) {
+				pointerRAF = window.requestAnimationFrame(animatePointer);
+			}
+		}
+
+		function onPreferenceChange(): void {
+			updateMode();
+			updateScrollProgress();
+			if (disabled()) {
+				if (pointerRAF) {
+					window.cancelAnimationFrame(pointerRAF);
+					pointerRAF = 0;
+				}
+				setAmbientDefaults();
+				return;
+			}
+			if (!pointerRAF) {
+				pointerRAF = window.requestAnimationFrame(animatePointer);
+			}
+		}
+
+		updateMode();
+		updateScrollProgress();
+		if (disabled()) {
+			setAmbientDefaults();
+		} else {
+			applyPointerPosition();
+		}
+
+		window.addEventListener('pointermove', onPointerMove, { passive: true });
+		window.addEventListener('scroll', onScroll, { passive: true });
+		window.addEventListener('resize', onResize, { passive: true });
+		const removeReduceMotionListener = addMediaQueryListener(reduceMotionQuery, onPreferenceChange);
+		const removeCoarsePointerListener = addMediaQueryListener(coarsePointerQuery, onPreferenceChange);
+
+		return () => {
+			window.removeEventListener('pointermove', onPointerMove);
+			window.removeEventListener('scroll', onScroll);
+			window.removeEventListener('resize', onResize);
+			removeReduceMotionListener();
+			removeCoarsePointerListener();
+			if (pointerRAF) {
+				window.cancelAnimationFrame(pointerRAF);
+			}
+			if (scrollRAF) {
+				window.cancelAnimationFrame(scrollRAF);
+			}
+		};
+	}
+
 	onMount(() => {
 		hasToken = getAuthToken() !== '';
 		if ('serviceWorker' in navigator) {
-			navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+			navigator.serviceWorker
+				.register('/service-worker.js', { updateViaCache: 'none' })
+				.then((registration) => registration.update().catch(() => {}))
+				.catch(() => {});
 		}
+
+		const cleanupAmbient = setupAmbientMotion();
+		return () => cleanupAmbient();
 	});
 
 	afterNavigate(() => {
@@ -45,6 +193,13 @@
 </svelte:head>
 
 <div class="site-shell">
+	<div class="ambient-stage" aria-hidden="true">
+		<div class="ambient-layer ambient-layer--base"></div>
+		<div class="ambient-layer ambient-layer--pointer"></div>
+		<div class="ambient-layer ambient-layer--drift"></div>
+		<div class="ambient-layer ambient-layer--noise"></div>
+	</div>
+
 	<header class="site-header">
 		<div class="site-header__inner">
 			<a href="/" class="site-brand">

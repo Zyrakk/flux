@@ -325,9 +325,9 @@
 		<div class="empty-state">No se encontraron artículos con estos filtros.</div>
 	{:else}
 		<div class="news-grid">
-			{#each articles as article (article.id)}
+			{#each articles as article, idx (article.id)}
 				{@const source = sourceBadge(article.source_type)}
-				<article class="news-card" in:fly={{ y: 12, duration: 320 }}>
+				<article class="news-card" in:fly={{ y: 12, duration: 320, delay: Math.min(idx * 14, 180) }}>
 					<div class="news-card__top">
 						<span class="badge {source.className}">{source.icon} {source.label}</span>
 						<span class="badge {sectionColor(article.section?.name)}">{article.section?.display_name ?? 'Sin sección'}</span>
