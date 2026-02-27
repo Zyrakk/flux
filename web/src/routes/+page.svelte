@@ -19,6 +19,7 @@
 		displayName: string;
 		hudLabel: string;
 	};
+	type BriefingViewMode = 'cards' | 'analyst';
 
 	const sections: SectionConfig[] = [
 		{ name: 'cybersecurity', displayName: 'Cybersecurity', hudLabel: 'CYBERSEC' },
@@ -35,6 +36,9 @@
 	let bootReady = $state(false);
 	let markdownOpen = $state(true);
 	let activeSection = $state('cybersecurity');
+	let viewMode = $state<BriefingViewMode>('cards');
+
+	const BRIEFING_VIEW_KEY = 'flux:briefing:view-mode';
 
 	const grouped = $derived(groupArticlesBySection(briefing?.articles ?? []));
 	const totalBriefed = $derived(briefing?.articles.length ?? 0);
@@ -104,6 +108,81 @@
 
 	function sectionCount(sectionName: string): number {
 		return grouped[sectionName]?.length ?? 0;
+	}
+
+	function normalizeRichText(input: string): string {
+		return input
+			.replace(/```[\s\S]*?```/g, ' ')
+			.replace(/`[^`]*`/g, ' ')
+			.replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+			.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+			.replace(/[>#*_~|]+/g, ' ')
+			.replace(/\s+/g, ' ')
+			.trim();
+	}
+
+	function metadataString(article: Article, keys: string[]): string | undefined {
+		const metadata = article.metadata as Record<string, unknown> | undefined;
+		if (!metadata) return undefined;
+		for (const key of keys) {
+			const value = metadata[key];
+			if (typeof value === 'string' && value.trim()) return value.trim();
+		}
+
+		const nestedCandidates: Array<[string, string]> = [
+			['analysis', 'summary'],
+			['analysis', 'description'],
+			['briefing', 'summary'],
+			['briefing', 'description'],
+			['signal', 'summary']
+		];
+		for (const [rootKey, leafKey] of nestedCandidates) {
+			const root = metadata[rootKey];
+			if (root && typeof root === 'object' && !Array.isArray(root)) {
+				const nested = (root as Record<string, unknown>)[leafKey];
+				if (typeof nested === 'string' && nested.trim()) return nested.trim();
+			}
+		}
+		return undefined;
+	}
+
+	function articleSummary(article: Article): string {
+		const directSummary = article.summary?.trim();
+		if (directSummary) return directSummary;
+
+		const fromMetadata = metadataString(article, [
+			'summary',
+			'brief_summary',
+			'ai_summary',
+			'analysis',
+			'description',
+			'abstract',
+			'excerpt',
+			'tl_dr',
+			'tldr',
+			'brief'
+		]);
+		if (fromMetadata) return normalizeRichText(fromMetadata).slice(0, 420);
+
+		const fromContent = article.content?.trim();
+		if (fromContent) {
+			const cleaned = normalizeRichText(fromContent);
+			if (cleaned) return cleaned.slice(0, 420);
+		}
+
+		return 'Sin resumen disponible para esta señal.';
+	}
+
+	function setViewMode(mode: BriefingViewMode): void {
+		viewMode = mode;
+	}
+
+	function loadViewModePreference(): void {
+		if (!browser) return;
+		const saved = window.localStorage.getItem(BRIEFING_VIEW_KEY);
+		if (saved === 'cards' || saved === 'analyst') {
+			viewMode = saved;
+		}
 	}
 
 	function jumpToSection(sectionName: string): void {
@@ -265,7 +344,13 @@
 	}
 
 	onMount(() => {
+		loadViewModePreference();
 		void loadLatestBriefing();
+	});
+
+	$effect(() => {
+		if (!browser) return;
+		window.localStorage.setItem(BRIEFING_VIEW_KEY, viewMode);
 	});
 </script>
 
@@ -300,111 +385,144 @@
 
 			<div class="hud-separator mb-4"></div>
 
-			<div class="mb-4 flex flex-wrap gap-2">
-				{#each sections as sec}
-					<button
-						type="button"
-						class={`section-tab ${activeSection === sec.name ? 'active' : ''}`}
-						style={`--section-tint: ${sectionTint(sec.name)}; color: ${activeSection === sec.name ? sectionColor(sec.name) : ''};`}
-						onclick={() => jumpToSection(sec.name)}
-					>
-						{sec.displayName}
-						<span class="text-[10px] text-[rgba(255,255,255,0.45)]">{sectionCount(sec.name)}</span>
-					</button>
-				{/each}
+			<div class="mb-4 flex flex-wrap items-center gap-2">
+				<button
+					type="button"
+					class={`section-tab ${viewMode === 'cards' ? 'active' : ''}`}
+					style="--section-tint: 6,182,212;"
+					onclick={() => setViewMode('cards')}
+				>
+					Signal Cards
+				</button>
+				<button
+					type="button"
+					class={`section-tab ${viewMode === 'analyst' ? 'active' : ''}`}
+					style="--section-tint: 167,139,250;"
+					onclick={() => setViewMode('analyst')}
+				>
+					Analyst Briefing
+				</button>
 			</div>
 
-			<div class="panel surface-pad mb-4">
-				<div class="mb-3 flex items-center justify-between gap-3">
-					<h2 class="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[rgba(255,255,255,0.32)]">
-						ANALYST BRIEFING
-					</h2>
-					<button class="btn-ghost !px-3 !py-1.5 !text-[10px]" onclick={() => (markdownOpen = !markdownOpen)}>
-						{markdownOpen ? 'Ocultar' : 'Mostrar'}
-					</button>
-				</div>
-				{#if markdownOpen}
-					<div class="briefing-markdown prose prose-invert prose-flux max-w-none">
-						{@html markdownHtml}
+			{#if viewMode === 'analyst'}
+				<div class="panel surface-pad mb-4">
+					<div class="mb-3 flex items-center justify-between gap-3">
+						<h2 class="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[rgba(255,255,255,0.32)]">
+							ANALYST BRIEFING
+						</h2>
+						<button class="btn-ghost !px-3 !py-1.5 !text-[10px]" onclick={() => (markdownOpen = !markdownOpen)}>
+							{markdownOpen ? 'Ocultar' : 'Mostrar'}
+						</button>
 					</div>
-				{/if}
-			</div>
-
-			{#each sections as sec, sectionIndex}
-				{@const articles = grouped[sec.name] ?? []}
-				{#if articles.length > 0}
-					<section id={`section-${sec.name}`} class="section-block" style={`--section-tint: ${sectionTint(sec.name)};`}>
-						<SectionHeader label={sec.hudLabel} count={articles.length} tint={sectionTint(sec.name)} />
-						<div class={`section-grid ${articles.length > 1 ? 'has-side' : ''}`}>
-							<div>
-								<FeaturedCard article={articles[0]} sectionTint={sectionTint(sec.name)} delay={sectionIndex * 120 + 200} />
-								<div class="feedback-row mt-2">
-									<button
-										type="button"
-										class={`feedback-btn ${articles[0].feedback.liked ? 'liked' : ''}`}
-										onclick={() => onFeedback(articles[0], 'like')}
-									>
-										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
-										{articles[0].feedback.likes}
-									</button>
-									<button
-										type="button"
-										class={`feedback-btn ${articles[0].feedback.disliked ? 'disliked' : ''}`}
-										onclick={() => onFeedback(articles[0], 'dislike')}
-									>
-										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/></svg>
-										{articles[0].feedback.dislikes}
-									</button>
-									<button
-										type="button"
-										class={`feedback-btn ${articles[0].feedback.saved ? 'saved' : ''}`}
-										onclick={() => onFeedback(articles[0], 'save')}
-									>
-										<svg width="14" height="14" viewBox="0 0 24 24" fill={articles[0].feedback.saved ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
-										{articles[0].feedback.saves}
-									</button>
-								</div>
-							</div>
-
-							{#if articles.length > 1}
-								<div class="section-grid__side">
-									{#each articles.slice(1) as article, idx (article.id)}
-										<div>
-											<SignalCard article={article} sectionTint={sectionTint(sec.name)} index={idx} />
-											<div class="feedback-row mt-2">
-												<button
-													type="button"
-													class={`feedback-btn ${article.feedback.liked ? 'liked' : ''}`}
-													onclick={() => onFeedback(article, 'like')}
-												>
-													<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
-													{article.feedback.likes}
-												</button>
-												<button
-													type="button"
-													class={`feedback-btn ${article.feedback.disliked ? 'disliked' : ''}`}
-													onclick={() => onFeedback(article, 'dislike')}
-												>
-													<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/></svg>
-													{article.feedback.dislikes}
-												</button>
-												<button
-													type="button"
-													class={`feedback-btn ${article.feedback.saved ? 'saved' : ''}`}
-													onclick={() => onFeedback(article, 'save')}
-												>
-													<svg width="14" height="14" viewBox="0 0 24 24" fill={article.feedback.saved ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
-													{article.feedback.saves}
-												</button>
-											</div>
-										</div>
-									{/each}
-								</div>
-							{/if}
+					{#if markdownOpen}
+						<div class="briefing-markdown prose prose-invert prose-flux max-w-none">
+							{@html markdownHtml}
 						</div>
-					</section>
-				{/if}
-			{/each}
+					{/if}
+				</div>
+			{/if}
+
+			{#if viewMode === 'cards'}
+				<div class="mb-4 flex flex-wrap gap-2">
+					{#each sections as sec}
+						<button
+							type="button"
+							class={`section-tab ${activeSection === sec.name ? 'active' : ''}`}
+							style={`--section-tint: ${sectionTint(sec.name)}; color: ${activeSection === sec.name ? sectionColor(sec.name) : ''};`}
+							onclick={() => jumpToSection(sec.name)}
+						>
+							{sec.displayName}
+							<span class="text-[10px] text-[rgba(255,255,255,0.45)]">{sectionCount(sec.name)}</span>
+						</button>
+					{/each}
+				</div>
+
+				{#each sections as sec, sectionIndex}
+					{@const articles = grouped[sec.name] ?? []}
+					{#if articles.length > 0}
+						<section id={`section-${sec.name}`} class="section-block" style={`--section-tint: ${sectionTint(sec.name)};`}>
+							<SectionHeader label={sec.hudLabel} count={articles.length} tint={sectionTint(sec.name)} />
+							<div class={`section-grid ${articles.length > 1 ? 'has-side' : ''}`}>
+								<div>
+									<FeaturedCard
+										article={articles[0]}
+										summary={articleSummary(articles[0])}
+										sectionTint={sectionTint(sec.name)}
+										delay={sectionIndex * 120 + 200}
+									/>
+									<div class="feedback-row mt-2">
+										<button
+											type="button"
+											class={`feedback-btn ${articles[0].feedback.liked ? 'liked' : ''}`}
+											onclick={() => onFeedback(articles[0], 'like')}
+										>
+											<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+											{articles[0].feedback.likes}
+										</button>
+										<button
+											type="button"
+											class={`feedback-btn ${articles[0].feedback.disliked ? 'disliked' : ''}`}
+											onclick={() => onFeedback(articles[0], 'dislike')}
+										>
+											<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/></svg>
+											{articles[0].feedback.dislikes}
+										</button>
+										<button
+											type="button"
+											class={`feedback-btn ${articles[0].feedback.saved ? 'saved' : ''}`}
+											onclick={() => onFeedback(articles[0], 'save')}
+										>
+											<svg width="14" height="14" viewBox="0 0 24 24" fill={articles[0].feedback.saved ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+											{articles[0].feedback.saves}
+										</button>
+									</div>
+								</div>
+
+								{#if articles.length > 1}
+									<div class="section-grid__side">
+										{#each articles.slice(1) as article, idx (article.id)}
+											<div>
+												<SignalCard
+													article={article}
+													summary={articleSummary(article)}
+													sectionTint={sectionTint(sec.name)}
+													index={idx}
+												/>
+												<div class="feedback-row mt-2">
+													<button
+														type="button"
+														class={`feedback-btn ${article.feedback.liked ? 'liked' : ''}`}
+														onclick={() => onFeedback(article, 'like')}
+													>
+														<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+														{article.feedback.likes}
+													</button>
+													<button
+														type="button"
+														class={`feedback-btn ${article.feedback.disliked ? 'disliked' : ''}`}
+														onclick={() => onFeedback(article, 'dislike')}
+													>
+														<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/></svg>
+														{article.feedback.dislikes}
+													</button>
+													<button
+														type="button"
+														class={`feedback-btn ${article.feedback.saved ? 'saved' : ''}`}
+														onclick={() => onFeedback(article, 'save')}
+													>
+														<svg width="14" height="14" viewBox="0 0 24 24" fill={article.feedback.saved ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+														{article.feedback.saves}
+													</button>
+												</div>
+											</div>
+										{/each}
+									</div>
+								{/if}
+							</div>
+						</section>
+					{/if}
+				{/each}
+			{/if}
 		</div>
 	{/if}
 </section>

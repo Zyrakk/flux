@@ -7,10 +7,11 @@
 	type FeaturedCardProps = {
 		article: Article;
 		sectionTint: string;
+		summary?: string;
 		delay?: number;
 	};
 
-	let { article, sectionTint, delay = 0 }: FeaturedCardProps = $props();
+	let { article, sectionTint, summary, delay = 0 }: FeaturedCardProps = $props();
 
 	let wrapper = $state<HTMLDivElement | null>(null);
 	let card = $state<HTMLElement | null>(null);
@@ -115,7 +116,7 @@
 		<h3 class="news-card-featured__title">
 			<a href={article.url} target="_blank" rel="noreferrer">{article.title}</a>
 		</h3>
-		<p class="news-card-featured__summary">{article.summary || 'Sin resumen disponible para esta señal principal.'}</p>
+		<p class="news-card-featured__summary">{summary || article.summary || 'Sin resumen disponible para esta señal principal.'}</p>
 		<p class="mt-3 text-[11px] text-[rgba(255,255,255,0.3)]">
 			{formatRelativeTime(article.published_at ?? article.ingested_at)}
 		</p>
