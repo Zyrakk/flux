@@ -179,17 +179,25 @@ func (s *Store) UpdateArticleSectionAndStatus(ctx context.Context, id, sectionID
 }
 
 // CountPendingAboveThreshold returns pending article count above threshold in one section.
-func (s *Store) CountPendingAboveThreshold(ctx context.Context, sectionID string, threshold float64) (int, error) {
-	var count int
-	err := s.pool.QueryRow(ctx, `
+func (s *Store) CountPendingAboveThreshold(ctx context.Context, sectionID string, threshold float64, maxAge time.Duration) (int, error) {
+	query := `
 		SELECT COUNT(*)
 		FROM articles
 		WHERE section_id = $1
 			AND status = 'pending'
 			AND relevance_score IS NOT NULL
-			AND relevance_score >= $2`,
-		sectionID, threshold,
-	).Scan(&count)
+			AND relevance_score >= $2`
+
+	args := []interface{}{sectionID, threshold}
+	if maxAge > 0 {
+		cutoff := time.Now().UTC().Add(-maxAge)
+		query += `
+			AND ingested_at >= $3`
+		args = append(args, cutoff)
+	}
+
+	var count int
+	err := s.pool.QueryRow(ctx, query, args...).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("counting pending above threshold for section %s: %w", sectionID, err)
 	}
@@ -197,25 +205,21 @@ func (s *Store) CountPendingAboveThreshold(ctx context.Context, sectionID string
 }
 
 // ListPendingArticlesForSection returns top pending articles by relevance score.
-func (s *Store) ListPendingArticlesForSection(ctx context.Context, sectionID string, threshold float64, limit int) ([]*models.Article, int, error) {
+func (s *Store) ListPendingArticlesForSection(ctx context.Context, sectionID string, threshold float64, limit int, maxAge time.Duration) ([]*models.Article, int, error) {
 	if limit <= 0 {
 		limit = 20
 	}
 
-	var total int
-	if err := s.pool.QueryRow(ctx, `
+	countQuery := `
 		SELECT COUNT(*)
 		FROM articles
 		WHERE section_id = $1
 			AND status = 'pending'
 			AND relevance_score IS NOT NULL
-			AND relevance_score >= $2`,
-		sectionID, threshold,
-	).Scan(&total); err != nil {
-		return nil, 0, fmt.Errorf("counting pending articles for section %s: %w", sectionID, err)
-	}
+			AND relevance_score >= $2`
+	countArgs := []interface{}{sectionID, threshold}
 
-	rows, err := s.pool.Query(ctx, `
+	listQuery := `
 		SELECT id, source_type, source_id, section_id, url, title, content, summary,
 			author, published_at, ingested_at, processed_at, relevance_score,
 			categories, status, metadata
@@ -223,11 +227,36 @@ func (s *Store) ListPendingArticlesForSection(ctx context.Context, sectionID str
 		WHERE section_id = $1
 			AND status = 'pending'
 			AND relevance_score IS NOT NULL
-			AND relevance_score >= $2
+			AND relevance_score >= $2`
+	listArgs := []interface{}{sectionID, threshold}
+
+	if maxAge > 0 {
+		cutoff := time.Now().UTC().Add(-maxAge)
+		countQuery += `
+			AND ingested_at >= $3`
+		listQuery += `
+			AND ingested_at >= $3`
+		countArgs = append(countArgs, cutoff)
+		listArgs = append(listArgs, cutoff)
+	}
+
+	var total int
+	if err := s.pool.QueryRow(ctx, countQuery, countArgs...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("counting pending articles for section %s: %w", sectionID, err)
+	}
+
+	if maxAge > 0 {
+		listQuery += `
 		ORDER BY relevance_score DESC, ingested_at DESC
-		LIMIT $3`,
-		sectionID, threshold, limit,
-	)
+		LIMIT $4`
+	} else {
+		listQuery += `
+		ORDER BY relevance_score DESC, ingested_at DESC
+		LIMIT $3`
+	}
+	listArgs = append(listArgs, limit)
+
+	rows, err := s.pool.Query(ctx, listQuery, listArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("listing pending articles for section %s: %w", sectionID, err)
 	}
@@ -247,6 +276,27 @@ func (s *Store) ListPendingArticlesForSection(ctx context.Context, sectionID str
 	}
 
 	return out, total, rows.Err()
+}
+
+// ArchiveStaleArticles marks old pending articles as archived.
+// Returns the number of articles archived.
+func (s *Store) ArchiveStaleArticles(ctx context.Context, olderThan time.Duration) (int64, error) {
+	if olderThan <= 0 {
+		return 0, nil
+	}
+
+	cutoff := time.Now().UTC().Add(-olderThan)
+	tag, err := s.pool.Exec(ctx, `
+		UPDATE articles
+		SET status = 'archived'
+		WHERE status = 'pending'
+		  AND ingested_at < $1`,
+		cutoff,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("archiving stale articles: %w", err)
+	}
+	return tag.RowsAffected(), nil
 }
 
 // UpdateArticleSummary stores the LLM-generated summary.

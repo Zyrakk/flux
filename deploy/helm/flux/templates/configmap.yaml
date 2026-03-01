@@ -13,6 +13,7 @@ data:
   LLM_ENDPOINT: {{ .Values.llm.endpoint | quote }}
   LLM_MODEL: {{ .Values.llm.model | quote }}
   BRIEFING_SCHEDULE: {{ .Values.briefingGen.schedule | quote }}
+  BRIEFING_MAX_AGE_DAYS: {{ .Values.briefingGen.maxAgeDays | default "7" | quote }}
   RELEVANCE_THRESHOLD_DEFAULT: {{ .Values.relevance.thresholdDefault | quote }}
   RELEVANCE_THRESHOLD_MIN: {{ .Values.relevance.thresholdMin | quote }}
   RELEVANCE_THRESHOLD_MAX: {{ .Values.relevance.thresholdMax | quote }}

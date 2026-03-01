@@ -287,7 +287,7 @@ func (e *Engine) resolveSourceID(article *models.Article) string {
 // AdjustThreshold applies the dynamic threshold rules and persists changes.
 func (e *Engine) AdjustThreshold(ctx context.Context, sectionID string) (float64, bool, error) {
 	current := e.ThresholdBySectionID(sectionID)
-	count, err := e.store.CountPendingAboveThreshold(ctx, sectionID, current)
+	count, err := e.store.CountPendingAboveThreshold(ctx, sectionID, current, 0)
 	if err != nil {
 		return current, false, err
 	}

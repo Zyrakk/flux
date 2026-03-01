@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"os/signal"
 	"sort"
@@ -115,6 +116,7 @@ func runDaemon(ctx context.Context, cfg *config.Config, db *store.Store, analyze
 
 func runOnce(ctx context.Context, cfg *config.Config, db *store.Store, analyzer llm.Analyzer) error {
 	start := time.Now()
+	maxAge := time.Duration(cfg.BriefingMaxAgeDays) * 24 * time.Hour
 
 	sections, err := db.ListSections(ctx)
 	if err != nil {
@@ -135,6 +137,17 @@ func runOnce(ctx context.Context, cfg *config.Config, db *store.Store, analyzer 
 		return nil
 	}
 
+	// Archive stale pending articles that are too old to appear in a briefing.
+	archiveAge := time.Duration(cfg.BriefingMaxAgeDays*2) * 24 * time.Hour
+	if archiveAge > 0 {
+		archived, err := db.ArchiveStaleArticles(ctx, archiveAge)
+		if err != nil {
+			log.WithError(err).Warn("Failed to archive stale articles")
+		} else if archived > 0 {
+			log.WithField("archived_count", archived).Info("Archived stale pending articles")
+		}
+	}
+
 	sectionRuns := make(map[string]*sectionRun, len(enabledSections))
 	totalCandidates := 0
 	for _, sec := range enabledSections {
@@ -147,7 +160,7 @@ func runOnce(ctx context.Context, cfg *config.Config, db *store.Store, analyzer 
 			fetchLimit = 20
 		}
 
-		candidates, total, err := db.ListPendingArticlesForSection(ctx, sec.ID, threshold, fetchLimit)
+		candidates, total, err := db.ListPendingArticlesForSection(ctx, sec.ID, threshold, fetchLimit, maxAge)
 		if err != nil {
 			return fmt.Errorf("listing pending section articles (%s): %w", sec.Name, err)
 		}
@@ -163,6 +176,7 @@ func runOnce(ctx context.Context, cfg *config.Config, db *store.Store, analyzer 
 		log.WithFields(log.Fields{
 			"section":        sec.Name,
 			"threshold":      threshold,
+			"max_age_days":   cfg.BriefingMaxAgeDays,
 			"pending_total":  total,
 			"fetched_count":  len(candidates),
 			"selected_count": len(clusteredCandidates),
@@ -764,7 +778,16 @@ func relevanceScore(article *models.Article) float64 {
 	if article == nil || article.RelevanceScore == nil {
 		return 0
 	}
-	return *article.RelevanceScore
+	base := *article.RelevanceScore
+
+	ageDays := time.Since(article.IngestedAt).Hours() / 24.0
+	if ageDays < 0 {
+		ageDays = 0
+	}
+	const halfLifeDays = 3.0
+	decay := math.Exp(-0.693 * ageDays / halfLifeDays)
+
+	return base * decay
 }
 
 func parseArticleMetadata(raw json.RawMessage) map[string]interface{} {

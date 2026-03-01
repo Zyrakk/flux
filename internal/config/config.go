@@ -35,7 +35,8 @@ type Config struct {
 	SourceBoosts              map[string]float64
 
 	// Briefing
-	BriefingSchedule string
+	BriefingSchedule   string
+	BriefingMaxAgeDays int
 
 	// API Server
 	APIPort int
@@ -70,6 +71,7 @@ func Load() *Config {
 		RelevanceThresholdMax:     getEnvFloat("RELEVANCE_THRESHOLD_MAX", 0.60),
 		RelevanceThresholdStep:    getEnvFloat("RELEVANCE_THRESHOLD_STEP", 0.05),
 		BriefingSchedule:          getEnv("BRIEFING_SCHEDULE", "0 3 * * *"),
+		BriefingMaxAgeDays:        getEnvInt("BRIEFING_MAX_AGE_DAYS", 7),
 		APIPort:                   getEnvInt("API_PORT", 8080),
 		AuthToken:                 strings.TrimSpace(getEnv("AUTH_TOKEN", "")),
 		LogLevel:                  getEnv("LOG_LEVEL", "info"),
