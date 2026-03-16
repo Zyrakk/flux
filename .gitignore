@@ -45,6 +45,16 @@ deploy/helm/flux/values.local.yaml
 deploy/helm/flux/values.secrets.yaml
 deploy/helm/flux/values.secrets.local.yaml
 
+# AI / Claude
+AGENTS.md
+.claude/
+docs/superpowers/
+
+# Local build artifacts
+briefing-gen/
+briefing-gen
+
 # Misc
 tmp/
 *.log
+*.db
