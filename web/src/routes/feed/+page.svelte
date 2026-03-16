@@ -174,7 +174,7 @@
 	}
 
 	async function handleError(err: unknown) {
-		const message = err instanceof Error ? err.message : 'Error inesperado';
+		const message = err instanceof Error ? err.message : 'Unexpected error';
 		if (message.includes('UNAUTHORIZED')) {
 			await goto('/login');
 			return;
@@ -311,13 +311,13 @@
 	<div class="panel surface-pad">
 		<div class="flex flex-wrap items-center justify-between gap-3">
 			<div>
-				<h1 class="text-xl font-extrabold tracking-tight text-[rgba(255,255,255,0.92)]">Feed de Noticias</h1>
-				<p class="mt-1 text-sm text-[rgba(255,255,255,0.48)]">Explora todas las señales ingestadas con filtros HUD.</p>
+				<h1 class="text-xl font-extrabold tracking-tight text-[rgba(255,255,255,0.92)]">News Feed</h1>
+				<p class="mt-1 text-sm text-[rgba(255,255,255,0.48)]">Explore all ingested signals with HUD filters.</p>
 			</div>
 
 			<button class="btn-ghost" onclick={() => (filtersOpen = !filtersOpen)}>
 				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-				Filtros
+				Filters
 				{#if activeFilterCount > 0}
 					<span class="ml-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[rgba(6,182,212,0.2)] px-1 text-[11px] font-bold text-[var(--flux-accent)]">{activeFilterCount}</span>
 				{/if}
@@ -328,8 +328,8 @@
 			<div class="mt-4 rounded-2xl border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.015)] p-4">
 				<div class="mb-4">
 					<div class="mb-2 flex items-center justify-between">
-						<span class="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[rgba(255,255,255,0.34)]">Secciones</span>
-						<button class="text-xs font-semibold text-[rgba(255,255,255,0.5)] hover:text-[rgba(255,255,255,0.75)]" onclick={clearSectionFilter}>Todas</button>
+						<span class="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[rgba(255,255,255,0.34)]">Sections</span>
+						<button class="text-xs font-semibold text-[rgba(255,255,255,0.5)] hover:text-[rgba(255,255,255,0.75)]" onclick={clearSectionFilter}>All</button>
 					</div>
 					<div class="flex flex-wrap gap-1.5">
 						{#each sections as sec}
@@ -352,18 +352,18 @@
 
 				<div class="filter-grid">
 					<div>
-						<label for="feed-filter-source" class="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[rgba(255,255,255,0.34)]">Fuente</label>
+						<label for="feed-filter-source" class="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[rgba(255,255,255,0.34)]">Source</label>
 						<select id="feed-filter-source" class="input" bind:value={sourceRef} onchange={() => void resetAndLoad()}>
-							<option value="">Todas</option>
+							<option value="">All</option>
 							{#each sources as src}
 								<option value={src.id}>{src.name}</option>
 							{/each}
 						</select>
 					</div>
 					<div>
-						<label for="feed-filter-status" class="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[rgba(255,255,255,0.34)]">Estado</label>
+						<label for="feed-filter-status" class="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[rgba(255,255,255,0.34)]">Status</label>
 						<select id="feed-filter-status" class="input" bind:value={status} onchange={() => void resetAndLoad()}>
-							<option value="">Todos</option>
+							<option value="">All</option>
 							<option value="pending">Pending</option>
 							<option value="processed">Processed</option>
 							<option value="briefed">Briefed</option>
@@ -371,18 +371,18 @@
 						</select>
 					</div>
 					<div>
-						<label for="feed-filter-from" class="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[rgba(255,255,255,0.34)]">Desde</label>
+						<label for="feed-filter-from" class="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[rgba(255,255,255,0.34)]">From</label>
 						<input id="feed-filter-from" type="date" class="input" bind:value={fromDate} onchange={() => void resetAndLoad()} />
 					</div>
 					<div>
-						<label for="feed-filter-to" class="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[rgba(255,255,255,0.34)]">Hasta</label>
+						<label for="feed-filter-to" class="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[rgba(255,255,255,0.34)]">To</label>
 						<input id="feed-filter-to" type="date" class="input" bind:value={toDate} onchange={() => void resetAndLoad()} />
 					</div>
 				</div>
 
 				<label class="mt-4 inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-[rgba(255,255,255,0.55)]">
 					<input type="checkbox" class="hud-checkbox" bind:checked={likedOnly} onchange={() => void resetAndLoad()} />
-					Solo artículos con like
+					Liked articles only
 				</label>
 			</div>
 		{/if}
@@ -394,10 +394,10 @@
 
 	{#if loading}
 		<div class="panel surface-pad text-center">
-			<span class="loading-pulse text-sm text-[rgba(255,255,255,0.45)]">Cargando artículos...</span>
+			<span class="loading-pulse text-sm text-[rgba(255,255,255,0.45)]">Loading articles...</span>
 		</div>
 	{:else if articles.length === 0}
-		<div class="empty-state">No se encontraron artículos con estos filtros.</div>
+		<div class="empty-state">No articles found with these filters.</div>
 	{:else}
 		<div class="grid gap-3 md:grid-cols-2">
 			{#each articles as article, idx (article.id)}
@@ -412,7 +412,7 @@
 						<span class={`priority-badge ${priorityClass(priority)}`}>{priority}</span>
 						<span class="signal-card__time">{formatRelativeTime(article.published_at ?? article.ingested_at)}</span>
 						<span class="flex-1"></span>
-						<span class="signal-card__source">{article.section?.display_name ?? 'Sin sección'}</span>
+						<span class="signal-card__source">{article.section?.display_name ?? 'No section'}</span>
 					</div>
 
 					<h2 class="signal-card__title">
@@ -423,7 +423,7 @@
 					<div class="mt-3 flex items-center justify-between gap-3">
 						<div class="min-w-[130px] flex-1">
 							<div class="mb-1 flex items-center justify-between text-[11px] text-[rgba(255,255,255,0.38)]">
-								<span>Relevancia</span>
+								<span>Relevance</span>
 								<span class="font-mono">{article.relevance_score?.toFixed(3) ?? '—'}</span>
 							</div>
 							<div class="h-1.5 rounded-full bg-[rgba(255,255,255,0.07)]">
@@ -467,11 +467,11 @@
 	<div bind:this={sentinel} class="h-6"></div>
 	{#if loadingMore}
 		<div class="py-3 text-center">
-			<span class="loading-pulse font-mono text-xs uppercase tracking-[0.12em] text-[rgba(255,255,255,0.4)]">Cargando más...</span>
+			<span class="loading-pulse font-mono text-xs uppercase tracking-[0.12em] text-[rgba(255,255,255,0.4)]">Loading more...</span>
 		</div>
 	{:else if !hasMore && articles.length > 0}
 		<div class="py-2 text-center font-mono text-xs uppercase tracking-[0.12em] text-[rgba(255,255,255,0.35)]">
-			Fin del feed · {articles.length} artículos
+			End of feed · {articles.length} articles
 		</div>
 	{/if}
 </section>
