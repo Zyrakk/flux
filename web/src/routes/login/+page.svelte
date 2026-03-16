@@ -24,7 +24,7 @@
 		<div class="mb-7 text-center">
 			<div class="site-brand__mark mx-auto h-14 w-14 text-xl">F</div>
 			<h1 class="login-title mt-4">Flux Access</h1>
-			<p class="mt-2 text-sm text-[rgba(255,255,255,0.5)]">Introduce tu token para acceder al briefing.</p>
+			<p class="mt-2 text-sm text-[rgba(255,255,255,0.5)]">Enter your token to access the briefing.</p>
 		</div>
 
 		{#if error}
@@ -41,11 +41,11 @@
 				autocomplete="current-password"
 			/>
 
-			<button class="btn-primary w-full !py-2.5" onclick={login}>Acceder</button>
+			<button class="btn-primary w-full !py-2.5" onclick={login}>Sign in</button>
 		</div>
 
 		<p class="mt-5 text-center font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[rgba(255,255,255,0.32)]">
-			Puedes dejarlo vacío si usas auth por reverse-proxy.
+			Leave empty if using reverse-proxy authentication.
 		</p>
 	</div>
 </div>
