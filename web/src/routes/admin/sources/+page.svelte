@@ -56,7 +56,7 @@
 
 	async function createSource() {
 		if (!newSourceName.trim() || !newSourceURL.trim()) {
-			error = 'Nombre y URL son obligatorios';
+			error = 'Name and URL are required';
 			return;
 		}
 		saving = true;
@@ -121,7 +121,7 @@
 
 	async function createSection() {
 		if (!newSectionName.trim() || !newSectionDisplayName.trim()) {
-			error = 'name y display_name son obligatorios';
+			error = 'name and display_name are required';
 			return;
 		}
 
@@ -189,7 +189,7 @@
 	}
 
 	async function handleError(err: unknown) {
-		const message = err instanceof Error ? err.message : 'Error inesperado';
+		const message = err instanceof Error ? err.message : 'Unexpected error';
 		if (message.includes('UNAUTHORIZED')) {
 			await goto('/login');
 			return;
@@ -200,9 +200,9 @@
 
 <section class="briefing-page">
 	<div class="panel surface-pad">
-		<h1 class="text-xl font-extrabold tracking-tight text-[rgba(255,255,255,0.92)]">Panel de Administración</h1>
+		<h1 class="text-xl font-extrabold tracking-tight text-[rgba(255,255,255,0.92)]">Admin Panel</h1>
 		<p class="mt-2 max-w-2xl text-sm text-[rgba(255,255,255,0.5)]">
-			Gestiona fuentes RSS, secciones y reglas de briefing desde una vista centralizada.
+			Manage RSS sources, sections, and briefing rules from a centralized view.
 		</p>
 	</div>
 
@@ -212,26 +212,26 @@
 
 	<div class="panel overflow-hidden">
 		<div class="flex items-center justify-between px-5 pb-3 pt-5">
-			<h2 class="text-base font-extrabold text-[rgba(255,255,255,0.9)]">Fuentes</h2>
-			<span class="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-[rgba(255,255,255,0.35)]">{sources.length} configuradas</span>
+			<h2 class="text-base font-extrabold text-[rgba(255,255,255,0.9)]">Sources</h2>
+			<span class="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-[rgba(255,255,255,0.35)]">{sources.length} configured</span>
 		</div>
 
 		{#if loading}
 			<div class="px-5 pb-5 text-center">
-				<span class="loading-pulse text-sm text-[rgba(255,255,255,0.45)]">Cargando fuentes...</span>
+				<span class="loading-pulse text-sm text-[rgba(255,255,255,0.45)]">Loading sources...</span>
 			</div>
 		{:else}
 			<div class="overflow-x-auto px-3 pb-3">
 				<table class="table-hud">
 					<thead>
 						<tr>
-							<th>Estado</th>
-							<th>Nombre</th>
-							<th>Tipo</th>
-							<th class="hidden sm:table-cell">Secciones</th>
-							<th class="hidden md:table-cell">Último fetch</th>
+							<th>Status</th>
+							<th>Name</th>
+							<th>Type</th>
+							<th class="hidden sm:table-cell">Sections</th>
+							<th class="hidden md:table-cell">Last fetch</th>
 							<th class="hidden lg:table-cell">Stats</th>
-							<th class="text-right">Acción</th>
+							<th class="text-right">Action</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -272,7 +272,7 @@
 								</td>
 								<td class="text-right">
 									<button class="btn-ghost !px-3 !py-1.5 !text-[10px]" onclick={() => toggleSource(source)}>
-										{source.enabled ? 'Deshabilitar' : 'Habilitar'}
+										{source.enabled ? 'Disable' : 'Enable'}
 									</button>
 								</td>
 							</tr>
@@ -285,13 +285,13 @@
 
 	<div class="grid gap-4 lg:grid-cols-2">
 		<div class="panel surface-pad">
-			<h2 class="text-base font-extrabold text-[rgba(255,255,255,0.9)]">Añadir Fuente RSS</h2>
+			<h2 class="text-base font-extrabold text-[rgba(255,255,255,0.9)]">Add RSS Source</h2>
 			<div class="mt-4 space-y-3">
-				<input class="input" placeholder="Nombre" bind:value={newSourceName} />
-				<input class="input" placeholder="URL RSS" bind:value={newSourceURL} />
+				<input class="input" placeholder="Name" bind:value={newSourceName} />
+				<input class="input" placeholder="RSS URL" bind:value={newSourceURL} />
 
 				<div>
-					<div class="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[rgba(255,255,255,0.34)]">Secciones</div>
+					<div class="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[rgba(255,255,255,0.34)]">Sections</div>
 					<div class="flex flex-wrap gap-1.5">
 						{#each sections as section}
 							<label
@@ -312,23 +312,23 @@
 				</div>
 
 				<button class="btn-primary w-full" disabled={saving} onclick={createSource}>
-					{saving ? 'Validando...' : 'Añadir fuente'}
+					{saving ? 'Validating...' : 'Add source'}
 				</button>
 			</div>
 		</div>
 
 		<div class="panel surface-pad">
-			<h2 class="text-base font-extrabold text-[rgba(255,255,255,0.9)]">Crear Sección</h2>
+			<h2 class="text-base font-extrabold text-[rgba(255,255,255,0.9)]">Create Section</h2>
 			<div class="mt-4 space-y-3">
 				<input class="input" placeholder="name (slug)" bind:value={newSectionName} />
-				<input class="input" placeholder="display_name (ej: Seguridad)" bind:value={newSectionDisplayName} />
+				<input class="input" placeholder="display_name (e.g., Security)" bind:value={newSectionDisplayName} />
 				<textarea
 					class="input"
 					rows="3"
-					placeholder="seed keywords separadas por coma"
+					placeholder="seed keywords, comma separated"
 					bind:value={newSectionKeywords}
 				></textarea>
-				<button class="btn-primary w-full" onclick={createSection}>Crear sección</button>
+				<button class="btn-primary w-full" onclick={createSection}>Create section</button>
 			</div>
 		</div>
 	</div>
@@ -336,9 +336,9 @@
 	<div class="panel surface-pad">
 		<div class="flex flex-wrap items-end justify-between gap-3">
 			<div>
-				<h2 class="text-base font-extrabold text-[rgba(255,255,255,0.9)]">Gestión de Secciones</h2>
+				<h2 class="text-base font-extrabold text-[rgba(255,255,255,0.9)]">Section Management</h2>
 				<p class="mt-1 text-sm text-[rgba(255,255,255,0.5)]">
-					Arrastra para reordenar, activa o desactiva y ajusta el máximo por briefing.
+					Drag to reorder, enable or disable, and adjust the max per briefing.
 				</p>
 			</div>
 		</div>
@@ -359,7 +359,7 @@
 							<div>
 								<div class="text-sm font-bold text-[rgba(255,255,255,0.86)]">{section.display_name}</div>
 								<div class="text-xs text-[rgba(255,255,255,0.42)]">
-									{section.name} · orden: {section.sort_order}
+									{section.name} · order: {section.sort_order}
 								</div>
 							</div>
 						</div>
@@ -373,7 +373,7 @@
 									checked={section.enabled}
 									onchange={() => toggleSectionEnabled(section)}
 								/>
-								Activa
+								Enabled
 							</label>
 
 							<div class="flex items-center gap-1.5">
@@ -384,7 +384,7 @@
 									bind:value={section.max_briefing_articles}
 								/>
 								<button class="btn-ghost !px-3 !py-1.5 !text-[10px]" onclick={() => saveSectionMax(section)}>
-									Guardar
+									Save
 								</button>
 							</div>
 						</div>
