@@ -12,14 +12,14 @@ const systemPrompt = `You are Flux, an intelligent news analysis system. You are
 // BuildClassifyPrompt creates the batch classification prompt.
 func BuildClassifyPrompt(articles []ArticleInput) string {
 	var sb strings.Builder
-	sb.WriteString(`Clasifica estos artículos. Para cada uno, responde con:
-- article_id: el ID proporcionado
+	sb.WriteString(`Classify these articles. For each one, respond with:
+- article_id: the provided ID
 - relevant: true/false
-- section: una de [cybersecurity, tech, economy, world] (confirma o corrige la sección asignada)
+- section: one of [cybersecurity, tech, economy, world] (confirm or correct the assigned section)
 - clickbait: true/false
-- reason: una frase explicando por qué es o no relevante
+- reason: one sentence explaining why it is or is not relevant
 
-Artículos:
+Articles:
 `)
 
 	for i, a := range articles {
@@ -32,21 +32,21 @@ Artículos:
 	}
 
 	sb.WriteString(`
-Responde SOLO con un JSON array.`)
+Respond ONLY with a JSON array.`)
 
 	return sb.String()
 }
 
 // BuildSummarizePrompt creates the single-article summarization prompt.
 func BuildSummarizePrompt(article ArticleInput) string {
-	return fmt.Sprintf(`Resume este artículo en 2-3 frases. Si es una vulnerabilidad, incluye severidad
-y si hay parche. Si es código/herramienta, explica qué hace y por qué importa.
-Si hay datos concretos (benchmarks, cifras), inclúyelos.
-Si es una noticia financiera, incluye cifras clave y tendencia.
+	return fmt.Sprintf(`Summarize this article in 2-3 sentences. If it's a vulnerability, include severity
+and whether a patch exists. If it's code/tool, explain what it does and why it matters.
+If there are concrete data points (benchmarks, figures), include them.
+If it's financial news, include key figures and trend.
 
-Título: %s
-Fuente: %s
-Sección: %s
+Title: %s
+Source: %s
+Section: %s
 
 %s`, article.Title, article.SourceType, article.Section, truncateContent(article.Content, 4000))
 }
@@ -54,26 +54,26 @@ Sección: %s
 // BuildBriefingPrompt creates the final briefing synthesis prompt.
 func BuildBriefingPrompt(sections []BriefingSection) string {
 	var sb strings.Builder
-	sb.WriteString(`Genera un briefing matutino organizado en las siguientes secciones.
-Para cada sección, destaca el artículo más importante primero.
-Si hay artículos relacionados entre secciones, conéctalos explícitamente.
-Si un artículo tiene múltiples fuentes, conserva explícitamente una línea con este formato:
-"📡 Visto en: HN, r/netsec, ...".
-Formato: Markdown. Tono: directo, técnico, sin relleno.
+	sb.WriteString(`Generate a morning briefing organized into the following sections.
+For each section, highlight the most important article first.
+If there are related articles across sections, connect them explicitly.
+If an article has multiple sources, explicitly keep a line with this format:
+"📡 Seen in: HN, r/netsec, ...".
+Format: Markdown. Tone: direct, technical, no filler.
 
 `)
 
 	for _, sec := range sections {
-		sb.WriteString(fmt.Sprintf("## %s (máx %d artículos)\n", sec.DisplayName, sec.MaxArticles))
+		sb.WriteString(fmt.Sprintf("## %s (max %d articles)\n", sec.DisplayName, sec.MaxArticles))
 		for i, a := range sec.Articles {
 			sb.WriteString(fmt.Sprintf("%d. **%s** (%s)\n   %s\n", i+1, a.Title, a.URL, a.Summary))
 			if len(a.ReportedBy) > 1 {
-				sb.WriteString(fmt.Sprintf("   Reportado por: %s\n", strings.Join(a.ReportedBy, ", ")))
+				sb.WriteString(fmt.Sprintf("   Reported by: %s\n", strings.Join(a.ReportedBy, ", ")))
 			}
 			if len(a.SeenIn) > 1 {
-				sb.WriteString(fmt.Sprintf("   📡 Visto en: %s\n", strings.Join(a.SeenIn, ", ")))
+				sb.WriteString(fmt.Sprintf("   📡 Seen in: %s\n", strings.Join(a.SeenIn, ", ")))
 			}
-			sb.WriteString(fmt.Sprintf("   Fuente principal: %s\n\n", a.SourceType))
+			sb.WriteString(fmt.Sprintf("   Primary source: %s\n\n", a.SourceType))
 		}
 		sb.WriteString("\n")
 	}
