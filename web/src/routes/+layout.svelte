@@ -131,7 +131,7 @@
 				</nav>
 
 				{#if hasToken}
-					<button class="btn-ghost !rounded-full !px-3 !py-2 !text-[11px]" onclick={logout}>Salir</button>
+					<button class="btn-ghost !rounded-full !px-3 !py-2 !text-[11px]" onclick={logout}>Logout</button>
 				{/if}
 
 				<div class="site-status">
