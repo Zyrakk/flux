@@ -11,7 +11,7 @@
 	import SignalCard from '$lib/components/SignalCard.svelte';
 	import StatsDashboard from '$lib/components/StatsDashboard.svelte';
 	import { apiFetch, apiJSON } from '$lib/api';
-	import { isSameCalendarDay, priorityLabel, sectionColor, sectionTint } from '$lib/format';
+	import { articleSummary, isSameCalendarDay, priorityLabel, sectionColor, sectionTint } from '$lib/format';
 	import type { Article, Briefing, FeedbackAction } from '$lib/types';
 
 	type SectionConfig = {
@@ -108,69 +108,6 @@
 
 	function sectionCount(sectionName: string): number {
 		return grouped[sectionName]?.length ?? 0;
-	}
-
-	function normalizeRichText(input: string): string {
-		return input
-			.replace(/```[\s\S]*?```/g, ' ')
-			.replace(/`[^`]*`/g, ' ')
-			.replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
-			.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
-			.replace(/[>#*_~|]+/g, ' ')
-			.replace(/\s+/g, ' ')
-			.trim();
-	}
-
-	function metadataString(article: Article, keys: string[]): string | undefined {
-		const metadata = article.metadata as Record<string, unknown> | undefined;
-		if (!metadata) return undefined;
-		for (const key of keys) {
-			const value = metadata[key];
-			if (typeof value === 'string' && value.trim()) return value.trim();
-		}
-
-		const nestedCandidates: Array<[string, string]> = [
-			['analysis', 'summary'],
-			['analysis', 'description'],
-			['briefing', 'summary'],
-			['briefing', 'description'],
-			['signal', 'summary']
-		];
-		for (const [rootKey, leafKey] of nestedCandidates) {
-			const root = metadata[rootKey];
-			if (root && typeof root === 'object' && !Array.isArray(root)) {
-				const nested = (root as Record<string, unknown>)[leafKey];
-				if (typeof nested === 'string' && nested.trim()) return nested.trim();
-			}
-		}
-		return undefined;
-	}
-
-	function articleSummary(article: Article): string {
-		const directSummary = article.summary?.trim();
-		if (directSummary) return directSummary;
-
-		const fromMetadata = metadataString(article, [
-			'summary',
-			'brief_summary',
-			'ai_summary',
-			'analysis',
-			'description',
-			'abstract',
-			'excerpt',
-			'tl_dr',
-			'tldr',
-			'brief'
-		]);
-		if (fromMetadata) return normalizeRichText(fromMetadata).slice(0, 420);
-
-		const fromContent = article.content?.trim();
-		if (fromContent) {
-			const cleaned = normalizeRichText(fromContent);
-			if (cleaned) return cleaned.slice(0, 420);
-		}
-
-		return 'No summary available for this signal.';
 	}
 
 	function setViewMode(mode: BriefingViewMode): void {

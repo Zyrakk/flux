@@ -1,3 +1,7 @@
+import type { Article } from '$lib/types';
+
+const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+
 export function formatRelativeTime(input?: string): string {
 	if (!input) {
 		return 'no date';
@@ -10,7 +14,6 @@ export function formatRelativeTime(input?: string): string {
 	const diffMs = value - Date.now();
 	const diffSeconds = Math.round(diffMs / 1000);
 	const absSeconds = Math.abs(diffSeconds);
-	const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
 
 	if (absSeconds < 60) {
 		return rtf.format(diffSeconds, 'second');
@@ -126,4 +129,67 @@ export function isSameCalendarDay(a: string, b: Date = new Date()): boolean {
 		return false;
 	}
 	return d.getFullYear() === b.getFullYear() && d.getMonth() === b.getMonth() && d.getDate() === b.getDate();
+}
+
+export function normalizeRichText(input: string): string {
+	return input
+		.replace(/```[\s\S]*?```/g, ' ')
+		.replace(/`[^`]*`/g, ' ')
+		.replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+		.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+		.replace(/[>#*_~|]+/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim();
+}
+
+export function metadataString(article: Article, keys: string[]): string | undefined {
+	const metadata = article.metadata as Record<string, unknown> | undefined;
+	if (!metadata) return undefined;
+	for (const key of keys) {
+		const value = metadata[key];
+		if (typeof value === 'string' && value.trim()) return value.trim();
+	}
+
+	const nestedCandidates: Array<[string, string]> = [
+		['analysis', 'summary'],
+		['analysis', 'description'],
+		['briefing', 'summary'],
+		['briefing', 'description'],
+		['signal', 'summary']
+	];
+	for (const [rootKey, leafKey] of nestedCandidates) {
+		const root = metadata[rootKey];
+		if (root && typeof root === 'object' && !Array.isArray(root)) {
+			const nested = (root as Record<string, unknown>)[leafKey];
+			if (typeof nested === 'string' && nested.trim()) return nested.trim();
+		}
+	}
+	return undefined;
+}
+
+export function articleSummary(article: Article): string {
+	const directSummary = article.summary?.trim();
+	if (directSummary) return directSummary;
+
+	const fromMetadata = metadataString(article, [
+		'summary',
+		'brief_summary',
+		'ai_summary',
+		'analysis',
+		'description',
+		'abstract',
+		'excerpt',
+		'tl_dr',
+		'tldr',
+		'brief'
+	]);
+	if (fromMetadata) return normalizeRichText(fromMetadata).slice(0, 420);
+
+	const fromContent = article.content?.trim();
+	if (fromContent) {
+		const cleaned = normalizeRichText(fromContent);
+		if (cleaned) return cleaned.slice(0, 420);
+	}
+
+	return 'No summary available for this signal.';
 }
