@@ -1,16 +1,16 @@
 export function formatRelativeTime(input?: string): string {
 	if (!input) {
-		return 'sin fecha';
+		return 'no date';
 	}
 	const value = new Date(input).getTime();
 	if (Number.isNaN(value)) {
-		return 'sin fecha';
+		return 'no date';
 	}
 
 	const diffMs = value - Date.now();
 	const diffSeconds = Math.round(diffMs / 1000);
 	const absSeconds = Math.abs(diffSeconds);
-	const rtf = new Intl.RelativeTimeFormat('es', { numeric: 'auto' });
+	const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
 
 	if (absSeconds < 60) {
 		return rtf.format(diffSeconds, 'second');
@@ -35,7 +35,7 @@ export function formatDateTime(input?: string): string {
 	if (Number.isNaN(value.getTime())) {
 		return 'N/A';
 	}
-	return value.toLocaleString('es-ES', {
+	return value.toLocaleString('en-US', {
 		year: 'numeric',
 		month: 'short',
 		day: '2-digit',
