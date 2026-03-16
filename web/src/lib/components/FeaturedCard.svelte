@@ -116,7 +116,7 @@
 		<h3 class="news-card-featured__title">
 			<a href={article.url} target="_blank" rel="noreferrer">{article.title}</a>
 		</h3>
-		<p class="news-card-featured__summary">{summary || article.summary || 'Sin resumen disponible para esta señal principal.'}</p>
+		<p class="news-card-featured__summary">{summary || article.summary || 'No summary available for this signal.'}</p>
 		<p class="mt-3 text-[11px] text-[rgba(255,255,255,0.3)]">
 			{formatRelativeTime(article.published_at ?? article.ingested_at)}
 		</p>
