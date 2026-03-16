@@ -840,21 +840,21 @@ func metadataFloat(meta map[string]interface{}, key string) float64 {
 
 func buildFallbackBriefing(sections []llm.BriefingSection) string {
 	if len(sections) == 0 {
-		return "# Briefing parcial\n\nNo hubo artículos listos para sintetizar en este ciclo."
+		return "# Partial Briefing\n\nNo articles were ready for synthesis in this cycle."
 	}
 
 	var sb strings.Builder
-	sb.WriteString("# Briefing parcial\n\n")
+	sb.WriteString("# Partial Briefing\n\n")
 	for _, sec := range sections {
 		sb.WriteString("## " + sec.DisplayName + "\n\n")
 		for _, article := range sec.Articles {
 			sb.WriteString("- **" + article.Title + "**\n")
 			sb.WriteString("  " + article.Summary + "\n")
 			if len(article.ReportedBy) > 1 {
-				sb.WriteString("  Reportado por: " + strings.Join(article.ReportedBy, ", ") + "\n")
+				sb.WriteString("  Reported by: " + strings.Join(article.ReportedBy, ", ") + "\n")
 			}
 			if len(article.SeenIn) > 1 {
-				sb.WriteString("  📡 Visto en: " + strings.Join(article.SeenIn, ", ") + "\n")
+				sb.WriteString("  📡 Seen in: " + strings.Join(article.SeenIn, ", ") + "\n")
 			}
 			sb.WriteString("  " + article.URL + "\n\n")
 		}
@@ -886,9 +886,9 @@ func appendMultiSourceCoverage(content string, sections []llm.BriefingSection) s
 
 			title := strings.TrimSpace(article.Title)
 			if title == "" {
-				title = "Historia sin titulo"
+				title = "Untitled story"
 			}
-			lines = append(lines, fmt.Sprintf("- %s\n  📡 Visto en: %s", title, strings.Join(article.SeenIn, ", ")))
+			lines = append(lines, fmt.Sprintf("- %s\n  📡 Seen in: %s", title, strings.Join(article.SeenIn, ", ")))
 		}
 	}
 
@@ -898,9 +898,9 @@ func appendMultiSourceCoverage(content string, sections []llm.BriefingSection) s
 
 	base := strings.TrimSpace(content)
 	if base == "" {
-		base = "# Briefing parcial"
+		base = "# Partial Briefing"
 	}
-	return base + "\n\n### 📡 Cobertura Multi-fuente\n" + strings.Join(lines, "\n")
+	return base + "\n\n### 📡 Multi-source Coverage\n" + strings.Join(lines, "\n")
 }
 
 func firstParagraph(content *string, maxChars int) string {
@@ -929,7 +929,7 @@ func estimateTokens(text string) int {
 	if text == "" {
 		return 0
 	}
-	// Heurística común: ~4 caracteres por token.
+	// Common heuristic: ~4 characters per token.
 	return (len(text) + 3) / 4
 }
 
