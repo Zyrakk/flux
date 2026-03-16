@@ -250,6 +250,61 @@
 				break;
 		}
 	}
+
+	function normalizeRichText(input: string): string {
+		return input
+			.replace(/```[\s\S]*?```/g, ' ')
+			.replace(/`[^`]*`/g, ' ')
+			.replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+			.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+			.replace(/[>#*_~|]+/g, ' ')
+			.replace(/\s+/g, ' ')
+			.trim();
+	}
+
+	function metadataString(article: Article, keys: string[]): string | undefined {
+		const metadata = article.metadata as Record<string, unknown> | undefined;
+		if (!metadata) return undefined;
+		for (const key of keys) {
+			const value = metadata[key];
+			if (typeof value === 'string' && value.trim()) return value.trim();
+		}
+
+		const nestedCandidates: Array<[string, string]> = [
+			['analysis', 'summary'],
+			['analysis', 'description'],
+			['briefing', 'summary'],
+			['briefing', 'description'],
+			['signal', 'summary']
+		];
+		for (const [rootKey, leafKey] of nestedCandidates) {
+			const root = metadata[rootKey];
+			if (root && typeof root === 'object' && !Array.isArray(root)) {
+				const nested = (root as Record<string, unknown>)[leafKey];
+				if (typeof nested === 'string' && nested.trim()) return nested.trim();
+			}
+		}
+		return undefined;
+	}
+
+	function articleSummary(article: Article): string {
+		const directSummary = article.summary?.trim();
+		if (directSummary) return directSummary;
+
+		const fromMetadata = metadataString(article, [
+			'summary', 'brief_summary', 'ai_summary', 'analysis',
+			'description', 'abstract', 'excerpt', 'tl_dr', 'tldr', 'brief'
+		]);
+		if (fromMetadata) return normalizeRichText(fromMetadata).slice(0, 420);
+
+		const fromContent = article.content?.trim();
+		if (fromContent) {
+			const cleaned = normalizeRichText(fromContent);
+			if (cleaned) return cleaned.slice(0, 420);
+		}
+
+		return 'No summary available for this signal.';
+	}
 </script>
 
 <section class="briefing-page">
@@ -363,7 +418,7 @@
 					<h2 class="signal-card__title">
 						<a href={article.url} target="_blank" rel="noreferrer">{article.title}</a>
 					</h2>
-					<p class="signal-card__summary">{article.summary || 'Sin resumen disponible para esta señal.'}</p>
+					<p class="signal-card__summary">{articleSummary(article)}</p>
 
 					<div class="mt-3 flex items-center justify-between gap-3">
 						<div class="min-w-[130px] flex-1">

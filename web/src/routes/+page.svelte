@@ -170,7 +170,7 @@
 			if (cleaned) return cleaned.slice(0, 420);
 		}
 
-		return 'Sin resumen disponible para esta señal.';
+		return 'No summary available for this signal.';
 	}
 
 	function setViewMode(mode: BriefingViewMode): void {
@@ -208,7 +208,7 @@
 			markdownHtml = String(marked.parse(payload.content || ''));
 			emitFooterStats(payload.articles.length, readMetaNumber(['source_count', 'sources_active', 'active_sources'], 47));
 		} catch (err) {
-			const message = err instanceof Error ? err.message : 'No se pudo cargar el briefing';
+			const message = err instanceof Error ? err.message : 'Failed to load briefing';
 			if (message.includes('UNAUTHORIZED')) {
 				await goto('/login');
 				return;
@@ -270,7 +270,7 @@
 
 			briefing = briefing;
 		} catch (err) {
-			const message = err instanceof Error ? err.message : 'Error enviando feedback';
+			const message = err instanceof Error ? err.message : 'Error sending feedback';
 			if (message.includes('UNAUTHORIZED')) {
 				await goto('/login');
 				return;
@@ -359,7 +359,7 @@
 
 	{#if loading}
 		<div class="panel surface-pad text-center">
-			<div class="loading-pulse text-sm text-[rgba(255,255,255,0.45)]">Conectando fuentes y generando briefing...</div>
+			<div class="loading-pulse text-sm text-[rgba(255,255,255,0.45)]">Connecting sources and generating briefing...</div>
 		</div>
 	{:else if error}
 		<div class="alert error">{error}</div>
@@ -368,13 +368,13 @@
 			<div class="mx-auto mb-3 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-[rgba(6,182,212,0.25)] bg-[rgba(6,182,212,0.08)] text-xl text-[var(--flux-accent)]">
 				◆
 			</div>
-			<h1 class="text-xl font-extrabold tracking-tight text-[rgba(255,255,255,0.9)]">No hay briefing disponible todavía</h1>
+			<h1 class="text-xl font-extrabold tracking-tight text-[rgba(255,255,255,0.9)]">No briefing available yet</h1>
 			<p class="mx-auto mt-2 max-w-xl text-sm text-[rgba(255,255,255,0.5)]">
-				El próximo briefing diario se genera durante el siguiente ciclo UTC.
+				The next daily briefing will be generated during the next UTC cycle.
 			</p>
 			<div class="mt-5 flex flex-wrap items-center justify-center gap-2">
-				<a class="btn-ghost" href="/feed">Abrir feed</a>
-				<a class="btn-ghost" href="/admin/sources">Gestionar fuentes</a>
+				<a class="btn-ghost" href="/feed">Open feed</a>
+				<a class="btn-ghost" href="/admin/sources">Manage sources</a>
 			</div>
 		</div>
 	{:else if briefing}
@@ -411,7 +411,7 @@
 							ANALYST BRIEFING
 						</h2>
 						<button class="btn-ghost !px-3 !py-1.5 !text-[10px]" onclick={() => (markdownOpen = !markdownOpen)}>
-							{markdownOpen ? 'Ocultar' : 'Mostrar'}
+							{markdownOpen ? 'Hide' : 'Show'}
 						</button>
 					</div>
 					{#if markdownOpen}
